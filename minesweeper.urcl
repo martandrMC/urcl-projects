@@ -22,20 +22,15 @@ minheap 2048
     str .game_state 0
     
     cal .populate_grid
-    
     .game_loop
+        cal .handle_mouse
         out %buffer 1
         cal .draw_grid
         out %buffer 0
-        
-        cal .handle_mouse
-        
-        out %wait 10
-        in r0 %wait
+    out %wait 10
+    in r0 %wait
     jmp .game_loop
 ret
-
-//////////////////////////////////////////////////
 
 .populate_grid
     imm v0 0
@@ -75,15 +70,14 @@ ret
             lsh v0 v0
             or a0 a0 v0
             lod v1 v1
-            jmp v1
+            cal v1
+            jmp .mouse_end
         .mouse_next
         inc v1 v1
         rsh v0 v0
     jmp .mouse_loop
     .mouse_end
 ret
-
-//////////////////////////////////////////////////
 
 .mouse_left
     lod v0 .game_state
@@ -107,7 +101,7 @@ ret
     sub v0 v0 4
     .right_skip
     lstr .grid a0 v0
-jmp .mouse_end
+ret
 
 .mouse_middle
     lod sp .saved_sp
@@ -129,12 +123,11 @@ psh s2
         add v1 v1 v0
         llod v0 .neighbor_offsets_y s0
         add v2 v2 v0
-        brn .safe_search_outside v1
-        brn .safe_search_outside v2
+        bge .safe_search_outside v1 16
+        bge .safe_search_outside v2 16
         mov a0 v2
         bsl a0 a0 4
         or a0 a0 v1
-        
         cal .check_is_mine
         add s1 s1 a1
         .safe_search_outside
@@ -142,10 +135,13 @@ psh s2
     inc s0 s0
     brl .safe_search_loop s0 8
     lstr .grid s2 s1
+    bnz .safe_spread_skip s1
+        cal .spread_zeros
+    .safe_spread_skip
 pop s2
 pop s1
 pop s0
-jmp .mouse_end
+ret
 
 .clicked_mine
     str .game_state 1
@@ -161,9 +157,7 @@ jmp .mouse_end
         .mine_skip_2
     inc v0 v0
     brl .mine_search_loop v0 256
-jmp .mouse_end
-
-//////////////////////////////////////////////////
+ret
 
 .check_is_mine
     llod v0 .grid a0
@@ -174,6 +168,28 @@ jmp .mouse_end
 ret
     .is_not_mine
     imm a1 0
+ret
+
+.spread_zeros
+    imm s0 0
+    mov s1 a0
+    .spread_search_loop
+        bsr v2 a0 4
+        and v1 a0 0xF
+        llod v0 .neighbor_offsets_x s0
+        add v1 v1 v0
+        llod v0 .neighbor_offsets_y s0
+        add v2 v2 v0
+        bge .spread_search_outside v1 16
+        bge .spread_search_outside v2 16
+        mov a0 v2
+        bsl a0 a0 4
+        or a0 a0 v1
+        cal .mouse_left
+        .spread_search_outside
+        mov a0 s1
+    inc s0 s0
+    brl .spread_search_loop s0 8
 ret
 
 //////////////////////////////////////////////////
