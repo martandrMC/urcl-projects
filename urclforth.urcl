@@ -279,8 +279,30 @@ nop
     str tr1 tr2
     jmp .next
 
+.head_add
+dw [ .head_poke 0x00 "+" ]
+.code_add
+dw [ .exec_add ]
+nop
+.exec_add
+    pop tr1
+    pop tr2
+    add tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+.head_dot
+dw [ .head_add 0x00 "." ]
+.code_dot
+dw [ .exec_dot ]
+nop
+.exec_dot
+    pop tr1
+    out %numb tr1
+    jmp .next
+
 .head_dtor
-dw [ .head_poke 0x02 "d>r" ]
+dw [ .head_dot 0x02 "d>r" ]
 .code_dtor
 dw [ .exec_dtor ]
 nop
@@ -359,7 +381,7 @@ nop
     jmp .next
 
 .head_interpret
-dw [ .head_jmp 0x00 "[" ]
+dw [ .head_jmp 0x80 "[" ]
 .code_interpret
 dw [ .exec_interpret ]
 nop
@@ -381,7 +403,7 @@ nop
     jmp .next
 
 .head_toghidden
-dw [ .head_interpret 0x00 "hidden" ]
+dw [ .head_interpret 0x05 "hidden" ]
 .code_toghidden
 dw [ .exec_toghidden ]
 nop
@@ -393,7 +415,7 @@ nop
     jmp .next
 
 .head_togrunimm
-dw [ .head_toghidden 0x00 "runimm" ]
+dw [ .head_toghidden 0x85 "runimm" ]
 .code_togrunimm
 dw [ .exec_togrunimm ]
 nop
