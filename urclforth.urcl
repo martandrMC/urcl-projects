@@ -1,0 +1,560 @@
+run rom
+bits 16
+
+// Total RAM = 384 Bytes
+minheap 99
+minstack 16
+
+// Forth VM Register Set (8 total)
+minreg 7
+@define dsp sp // Data Stack Pointer
+@define rsp r1 // Return Stack Pointer
+@define vip r2 // Virtual Instruction Pointer
+@define cfa r3 // Code Field Address
+@define tr1 r4 // Temporary Register 1
+@define tr2 r5 // Temporary Register 2
+@define tr3 r6 // Temporary Register 3
+@define tr4 r7 // Temporary Register 4
+
+// The length in the dictionary has a few flags on it too
+@define FLAG_RUNIMM 0x80 // Run immediately when encountered
+@define FLAG_HIDDEN 0x40 // Ingored by dictionary lookups
+@define MASK_LENGTH 0x0f // Only up to 16 chars for the name
+
+////////////////////////////////////////////////////////////
+//                    URCL ENTRYPOINT                     //
+////////////////////////////////////////////////////////////
+
+// The last 4 words are for the RSP
+// Memset them to AAAA so they are visible
+mov rsp sp
+imm tr1 4
+.fill_rs
+    psh 0xAAAA
+    dec tr1 tr1
+bnz .fill_rs tr1
+
+// The following 12 words are for the DSP
+// Memset them to BBBB so they are visible
+imm tr1 -12
+.fill_ds
+    lstr dsp tr1 0xBBBB
+    inc tr1 tr1
+bnz .fill_ds tr1
+
+// Initialise TDS, TRS constants
+lstr .code_tds 1 dsp
+lstr .code_trs 1 rsp
+
+// Inline version of .next to call the abort word
+// Don't want to place down a DW just for this
+imm cfa .code_abort
+lod tr1 cfa
+jmp tr1
+
+@debug
+hlt // we should never reach here
+
+////////////////////////////////////////////////////////////
+//                   RUNTIME ESSENTIALS                   //
+////////////////////////////////////////////////////////////
+
+// Every primitive word ends by jumping here
+// Jump to the next word's CFA and advance the VIP
+.next
+    lod cfa vip
+    inc vip vip
+    lod tr1 cfa
+    jmp tr1
+
+// CFA of function words points to this
+// Saves the VIP to the RS and jumps to the
+// word sequence in the DFA of the word
+.run_func
+    dec rsp rsp
+    str rsp vip
+    add vip cfa 1
+    jmp .next
+
+// CFA of constant words points to this
+// Pushes to the DS the first cell of the DFA of the word
+.run_const
+    llod tr1 cfa 1
+    psh tr1
+    jmp .next
+
+// CFA of variable words points to this
+// Pushes to the DS the address of the DFA of the word
+.run_var
+    add tr1 cfa 1
+    psh tr1
+    jmp .next
+
+////////////////////////////////////////////////////////////
+//                    HELPER FUNCTIONS                    //
+////////////////////////////////////////////////////////////
+
+.tell
+    brz .tell_done tr1
+        lod tr3 tr2
+        out %text tr3
+        inc tr2 tr2
+        dec tr1 tr1
+    jmp .tell
+    .tell_done
+    ret
+
+.word
+    imm tr1 0
+    .word_loop1
+        in  tr2 %text
+    ble .word_loop1 tr2 ' '
+    .word_loop2
+        lstr .word_buffer tr1 tr2
+        inc tr1 tr1
+        bre .word_skip tr1 16
+        in  tr2 %text
+    brg .word_loop2 tr2 ' '
+    .word_skip
+    imm tr2 .word_buffer
+    ret
+
+.number
+    imm tr3 0
+    .number_next
+    brz .number_done tr1
+        lod tr4 tr2
+        sub tr4 tr4 '0'
+        bge .number_done tr4 10
+        mlt tr3 tr3 10
+        add tr3 tr3 tr4
+        inc tr2 tr2
+        dec tr1 tr1
+    jmp .number_next
+    .number_done
+    mov tr2 tr3
+    ret
+
+.find
+    dec tr1 tr1
+    add cfa .code_last 1
+    .find_next
+        lod cfa cfa
+        llod tr3 cfa 1
+        and tr4 tr3 FLAG_HIDDEN
+        bnz .find_length_skip tr4
+        and tr3 tr3 MASK_LENGTH
+        bne .find_length_skip tr3 tr1
+            psh tr1
+            add cfa cfa 2
+            .find_compare
+                llod tr3 cfa tr1
+                llod tr4 tr2 tr1
+                bne .find_compare_skip tr3 tr4
+                dec tr1 tr1
+            brp .find_compare tr1
+            pop tr1
+            sub tr1 cfa 2
+            ret
+            .find_compare_skip
+            pop tr1
+            sub cfa cfa 2
+        .find_length_skip
+    bnz .find_next cfa
+    mov tr1 cfa
+    ret
+
+.create
+    and tr1 tr1 MASK_LENGTH
+    brz .create_exit tr1
+    llod tr3 .code_free 1
+    llod tr4 .code_last 1
+    lstr .code_last 1 tr3
+    lstr tr3 0 tr4
+    dec tr4 tr1
+    lstr tr3 1 tr4
+    add tr3 tr3 2
+    add tr4 tr3 tr1
+    lstr .code_free 1 tr4
+    .create_copy
+        dec tr1 tr1
+        llod tr4 tr2 tr1
+        lstr tr3 tr1 tr4
+    bnz .create_copy tr1
+    .create_exit
+    ret
+
+.append
+    llod tr2 .code_free 1
+    str tr2 tr1
+    inc tr2 tr2
+    lstr .code_free 1 tr2
+    ret
+
+////////////////////////////////////////////////////////////
+//                INITIAL WORD DICTIONARY                 //
+////////////////////////////////////////////////////////////
+
+.word_buffer // Maximum 16 chars between whitespaces
+dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
+
+///////////////////////// VARIABLES ////////////////////////
+
+.head_state
+dw [ 0 0x04 "state" ]
+.code_state
+dw [ .run_var 0 ]
+
+.head_last
+dw [ .head_state 0x03 "last" ]
+.code_last
+dw [ .run_var .dict_last ]
+
+.head_free
+dw [ .head_last 0x03 "free" ]
+.code_free
+dw [ .run_var M0 ]
+
+///////////////////////// CONSTANTS ////////////////////////
+
+.head_tds
+dw [ .head_free 0x02 "tds" ]
+.code_tds
+dw [ .run_const 0 ]
+
+.head_trs
+dw [ .head_tds 0x02 "trs" ]
+.code_trs
+dw [ .run_const 0 ]
+
+.head_func
+dw [ .head_trs 0x02 "func" ]
+.code_func
+dw [ .run_func .run_func ]
+
+//////////////////////// PRIMITIVES ////////////////////////
+
+.head_exit
+dw [ .head_func 0x03 "exit" ]
+.code_exit
+dw [ .exec_exit ]
+nop
+.exec_exit
+    lod vip rsp
+    inc rsp rsp
+    jmp .next
+
+.head_litn
+dw [ .head_exit 0x03 "litn" ]
+.code_litn
+dw [ .exec_litn ]
+nop
+.exec_litn
+    lod tr1 vip
+    inc vip vip
+    psh tr1
+    jmp .next
+
+.head_peek
+dw [ .head_litn 0x00 "@" ]
+.code_peek
+dw [ .exec_peek ]
+nop
+.exec_peek
+    pop tr1
+    lod tr1 tr1
+    psh tr1
+    jmp .next
+
+.head_poke
+dw [ .head_peek 0x00 "!" ]
+.code_poke
+dw [ .exec_poke ]
+nop
+.exec_poke
+    pop tr1
+    pop tr2
+    str tr1 tr2
+    jmp .next
+
+.head_dtor
+dw [ .head_poke 0x02 "d>r" ]
+.code_dtor
+dw [ .exec_dtor ]
+nop
+.exec_dtor
+    pop tr1
+    dec rsp rsp
+    str rsp tr1
+    jmp .next
+
+.head_rtod
+dw [ .head_dtor 0x02 "r>d" ]
+.code_rtod
+dw [ .exec_rtod ]
+nop
+.exec_rtod
+    lod tr1 rsp
+    inc rsp rsp
+    psh tr1
+    jmp .next
+
+.head_rsppeek
+dw [ .head_rtod 0x03 "rsp@" ]
+.code_rsppeek
+dw [ .exec_rsppeek ]
+nop
+.exec_rsppeek
+    psh rsp
+    jmp .next
+
+.head_rsppoke
+dw [ .head_rsppeek 0x03 "rsp!" ]
+.code_rsppoke
+dw [ .exec_rsppoke ]
+nop
+.exec_rsppoke
+    pop rsp
+    jmp .next
+
+.head_dsppeek
+dw [ .head_rsppoke 0x03 "dsp@" ]
+.code_dsppeek
+dw [ .exec_dsppeek ]
+nop
+.exec_dsppeek
+    psh dsp
+    jmp .next
+
+.head_dsppoke
+dw [ .head_dsppeek 0x03 "dsp!" ]
+.code_dsppoke
+dw [ .exec_dsppoke ]
+nop
+.exec_dsppoke
+    pop dsp
+    jmp .next
+
+.head_jmp
+dw [ .head_dsppoke 0x02 "jmp" ]
+.code_jmp
+dw [ .exec_jmp ]
+nop
+.exec_jmp
+    lod tr1 vip
+    add vip vip tr1
+    jmp .next
+
+.head_brz
+dw [ .head_jmp 0x02 "brz" ]
+.code_brz
+dw [ .exec_brz ]
+nop
+.exec_brz
+    pop tr1
+    brz .exec_jmp tr1
+    inc vip vip
+    jmp .next
+
+.head_interpret
+dw [ .head_jmp 0x00 "[" ]
+.code_interpret
+dw [ .exec_interpret ]
+nop
+.exec_interpret
+    llod tr1 .code_state 1
+    imm tr1 0
+    lstr .code_state 1 tr1
+    jmp .next
+
+.head_compile
+dw [ .head_interpret 0x00 "]" ]
+.code_compile
+dw [ .exec_compile ]
+nop
+.exec_compile
+    llod tr1 .code_state 1
+    imm tr1 1
+    lstr .code_state 1 tr1
+    jmp .next
+
+.head_toghidden
+dw [ .head_interpret 0x00 "hidden" ]
+.code_toghidden
+dw [ .exec_toghidden ]
+nop
+.exec_toghidden
+    pop tr1
+    llod tr2 tr1 1
+    xor tr2 tr2 FLAG_HIDDEN
+    lstr tr1 1 tr2
+    jmp .next
+
+.head_togrunimm
+dw [ .head_toghidden 0x00 "runimm" ]
+.code_togrunimm
+dw [ .exec_togrunimm ]
+nop
+.exec_togrunimm
+    pop tr1
+    llod tr2 tr1 1
+    xor tr2 tr2 FLAG_RUNIMM
+    lstr tr1 1 tr2
+    jmp .next
+
+.head_create
+dw [ .head_togrunimm 0x05 "create" ]
+.code_create
+dw [ .exec_create ]
+nop
+.exec_create
+    pop tr1
+    pop tr2
+    cal .create
+    jmp .next
+
+.head_append
+dw [ .head_create 0x05 "append" ]
+.code_append
+dw [ .exec_append ]
+nop
+.exec_append
+    pop tr1
+    cal .append
+    jmp .next
+
+.head_inp
+dw [ .head_append 0x02 "inp" ]
+.code_inp
+dw [ .exec_inp ]
+nop
+.exec_inp
+    in  tr1 %text
+    psh tr1
+    jmp .next
+
+.head_out
+dw [ .head_inp 0x02 "out" ]
+.code_out
+dw [ .exec_out ]
+nop
+.exec_out
+    pop tr1
+    out %text tr1
+    jmp .next
+
+.head_word
+dw [ .head_out 0x03 "word" ]
+.code_word
+dw [ .exec_word ]
+nop
+.exec_word
+    cal .word
+    psh tr2
+    psh tr1
+    jmp .next
+
+.head_tell
+dw [ .head_word 0x03 "tell" ]
+.code_tell
+dw [ .exec_tell ]
+nop
+.exec_tell
+    pop tr1
+    pop tr2
+    cal .tell
+    jmp .next
+
+.head_find
+dw [ .head_tell 0x03 "find" ]
+.code_find
+dw [ .exec_find ]
+nop
+.exec_find
+    pop tr1
+    pop tr2
+    cal .find
+    psh tr1
+    jmp .next
+
+.head_number
+dw [ .head_number 0x05 "number" ]
+.code_number
+dw [ .exec_number ]
+nop
+.exec_number
+    pop tr1
+    pop tr2
+    cal .number
+    psh tr2
+    psh tr1
+    jmp .next
+
+.head_repl
+dw [ .head_tell 0x03 "repl" ]
+.code_repl
+dw [ .exec_repl ]
+nop
+.exec_repl
+    cal .word
+    psh tr1
+    psh tr2
+    cal .find
+    pop tr2
+    brz .exec_repl_nodict tr1
+        llod tr2 tr1 1
+        and tr4 tr2 FLAG_RUNIMM
+        and tr2 tr2 MASK_LENGTH
+        add tr2 tr2 3
+        add cfa tr1 tr2
+        pop tr1
+        bnz .exec_repl_dict_interp tr4
+        llod tr4 .code_state 1
+        brz .exec_repl_dict_interp tr4
+        mov tr1 cfa
+        cal .append
+        jmp .next
+        .exec_repl_dict_interp
+        lod tr1 cfa
+        jmp tr1
+    .exec_repl_nodict
+    pop tr1
+    cal .number
+    bnz .exec_repl_error tr1
+        llod tr4 .code_state 1
+        brz .exec_repl_num_interp tr4
+        imm tr1 .code_litn
+        psh tr2
+        cal .append
+        pop tr1
+        cal .append
+        jmp .next
+        .exec_repl_num_interp
+        psh tr2
+        jmp .next
+    .exec_repl_error
+    out %text '?'
+    out %text 'E'
+    out %text 'R'
+    out %text 'R'
+    jmp .next
+
+/////////////////////////// FORTH //////////////////////////
+
+.head_abort
+dw [ .head_repl 0x04 "abort" ]
+.code_abort
+dw [ .run_func .code_trs .code_rsppoke .code_repl .code_jmp -4 ]
+
+.head_colon
+dw [ .head_abort 0x00 ":" ]
+.code_colon
+dw [ .run_func .code_word .code_create .code_litn .run_func .code_append ]
+dw [ .code_last .code_peek .code_toghidden .code_compile .code_exit ]
+
+.dict_last
+.head_semicol
+dw [ .head_colon 0x80 ";" ]
+.code_semicol
+dw [ .run_func .code_litn .code_exit .code_append ]
+dw [ .code_last .code_peek .code_toghidden .code_interpret .code_exit ]
