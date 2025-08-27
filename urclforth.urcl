@@ -108,12 +108,14 @@ hlt // we should never reach here
     imm tr1 0
     .word_loop1
         in  tr2 %text
+        out %text tr2
     ble .word_loop1 tr2 ' '
     .word_loop2
         lstr .word_buffer tr1 tr2
         inc tr1 tr1
         bre .word_skip tr1 16
         in  tr2 %text
+        out %text tr2
     brg .word_loop2 tr2 ' '
     .word_skip
     imm tr2 .word_buffer
@@ -430,6 +432,7 @@ dw [ .exec_inp ]
 nop
 .exec_inp
     in  tr1 %text
+    out %text tr2
     psh tr1
     jmp .next
 
