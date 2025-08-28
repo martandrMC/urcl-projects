@@ -202,322 +202,160 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 /////////////////// CONSTANTS + VARIABLES //////////////////
 
+@defvar "state" state 0
+@defvar "last" last .dict_last
+@defvar "free" free M0
 
-.head_state
-dw [ 0 0x04 "state" ]
-.code_state
-dw [ .run_var 0 ]
-
-.head_last
-dw [ .head_state 0x03 "last" ]
-.code_last
-dw [ .run_var .dict_last ]
-
-.head_free
-dw [ .head_last 0x03 "free" ]
-.code_free
-dw [ .run_var M0 ]
-
-
-.head_tds
-dw [ .head_free 0x02 "tds" ]
-.code_tds
-dw [ .run_const 0 ]
-
-.head_trs
-dw [ .head_tds 0x02 "trs" ]
-.code_trs
-dw [ .run_const 0 ]
-
-.head_ifunc
-dw [ .head_trs 0x04 "ifunc" ]
-.code_ifunc
-dw [ .run_const .run_func ]
-
-.head_ivar
-dw [ .head_ifunc 0x03 "ivar" ]
-.code_ivar
-dw [ .run_const .run_var ]
-
-.head_iconst
-dw [ .head_ivar 0x05 "iconst" ]
-.code_iconst
-dw [ .run_const .run_const ]
+@defconst "tds" tds 0
+@defconst "trs" trs 0
+@defconst "ifunc" ifunc .run_func
+@defconst "ivar" ivar .run_var
+@defconst "iconst" iconst .run_const
 
 //////////////////////// PRIMITIVES ////////////////////////
 
-.head_exit
-dw [ .head_iconst 0x03 "exit" ]
-.code_exit
-dw [ .exec_exit ]
-nop
-.exec_exit
+@defprim "exit" exit
     lod vip rsp
     inc rsp rsp
     jmp .next
 
-.head_litn
-dw [ .head_exit 0x03 "litn" ]
-.code_litn
-dw [ .exec_litn ]
-nop
-.exec_litn
+@defprim "litn" litn
     lod tr1 vip
     inc vip vip
     psh tr1
     jmp .next
 
-.head_peek
-dw [ .head_litn 0x00 "@" ]
-.code_peek
-dw [ .exec_peek ]
-nop
-.exec_peek
+@defprim "@" peek
     pop tr1
     lod tr1 tr1
     psh tr1
     jmp .next
 
-.head_poke
-dw [ .head_peek 0x00 "!" ]
-.code_poke
-dw [ .exec_poke ]
-nop
-.exec_poke
+@defprim "!" poke
     pop tr1
     pop tr2
     str tr1 tr2
     jmp .next
 
-.head_add
-dw [ .head_poke 0x00 "+" ]
-.code_add
-dw [ .exec_add ]
-nop
-.exec_add
+@defprim "+" add
     pop tr1
     pop tr2
     add tr1 tr1 tr2
     psh tr1
     jmp .next
 
-.head_dot
-dw [ .head_add 0x00 "." ]
-.code_dot
-dw [ .exec_dot ]
-nop
-.exec_dot
+@defprim "." dot
     pop tr1
     out %numb tr1
     jmp .next
 
-.head_dtor
-dw [ .head_dot 0x02 "d>r" ]
-.code_dtor
-dw [ .exec_dtor ]
-nop
-.exec_dtor
+@defprim "d>r" dtor
     pop tr1
     dec rsp rsp
     str rsp tr1
     jmp .next
 
-.head_rtod
-dw [ .head_dtor 0x02 "r>d" ]
-.code_rtod
-dw [ .exec_rtod ]
-nop
-.exec_rtod
+@defprim "r>d" rtod
     lod tr1 rsp
     inc rsp rsp
     psh tr1
     jmp .next
 
-.head_rsppeek
-dw [ .head_rtod 0x03 "rsp@" ]
-.code_rsppeek
-dw [ .exec_rsppeek ]
-nop
-.exec_rsppeek
+@defprim "rsp@" rsppeek
     psh rsp
     jmp .next
 
-.head_rsppoke
-dw [ .head_rsppeek 0x03 "rsp!" ]
-.code_rsppoke
-dw [ .exec_rsppoke ]
-nop
-.exec_rsppoke
+@defprim "rsp!" rsppoke
     pop rsp
     jmp .next
 
-.head_dsppeek
-dw [ .head_rsppoke 0x03 "dsp@" ]
-.code_dsppeek
-dw [ .exec_dsppeek ]
-nop
-.exec_dsppeek
+@defprim "dsp@" dsppeek
     psh dsp
     jmp .next
 
-.head_dsppoke
-dw [ .head_dsppeek 0x03 "dsp!" ]
-.code_dsppoke
-dw [ .exec_dsppoke ]
-nop
-.exec_dsppoke
+@defprim "dsp!" dsppoke
     pop dsp
     jmp .next
 
-.head_jmp
-dw [ .head_dsppoke 0x02 "jmp" ]
-.code_jmp
-dw [ .exec_jmp ]
-nop
-.exec_jmp
+@defprim "jmp" jmp
     lod tr1 vip
     add vip vip tr1
     jmp .next
 
-.head_brz
-dw [ .head_jmp 0x02 "brz" ]
-.code_brz
-dw [ .exec_brz ]
-nop
-.exec_brz
+@defprim "brz" brz
     pop tr1
     brz .exec_jmp tr1
     inc vip vip
     jmp .next
 
-.head_interpret
-dw [ .head_brz 0x80 "[" ]
-.code_interpret
-dw [ .exec_interpret ]
-nop
-.exec_interpret
+@defprimi "[" interpret
     llod tr1 .code_state 1
     imm tr1 0
     lstr .code_state 1 tr1
     jmp .next
 
-.head_compile
-dw [ .head_interpret 0x00 "]" ]
-.code_compile
-dw [ .exec_compile ]
-nop
-.exec_compile
+@defprim "]" compile
     llod tr1 .code_state 1
     imm tr1 1
     lstr .code_state 1 tr1
     jmp .next
 
-.head_hidden
-dw [ .head_compile 0x05 "hidden" ]
-.code_hidden
-dw [ .exec_hidden ]
-nop
-.exec_hidden
+@defprim "hidden" hidden
     pop tr1
     llod tr2 tr1 1
     xor tr2 tr2 FLAG_HIDDEN
     lstr tr1 1 tr2
     jmp .next
 
-.head_runimm
-dw [ .head_hidden 0x85 "runimm" ]
-.code_runimm
-dw [ .exec_runimm ]
-nop
-.exec_runimm
+@defprimi "runimm" runimm
     llod tr1 .code_latest 1
     llod tr2 tr1 1
     xor tr2 tr2 FLAG_RUNIMM
     lstr tr1 1 tr2
     jmp .next
 
-.head_create
-dw [ .head_runimm 0x05 "create" ]
-.code_create
-dw [ .exec_create ]
-nop
-.exec_create
+@defprim "create" create
     pop tr1
     pop tr2
     cal .create
     jmp .next
 
-.head_append
-dw [ .head_create 0x05 "append" ]
-.code_append
-dw [ .exec_append ]
-nop
-.exec_append
+@defprim "append" append
     pop tr1
     cal .append
     jmp .next
 
-.head_inp
-dw [ .head_append 0x02 "inp" ]
-.code_inp
-dw [ .exec_inp ]
-nop
-.exec_inp
+@defprim "inp" inp
     in  tr1 %text
     out %text tr2
     psh tr1
     jmp .next
 
-.head_out
-dw [ .head_inp 0x02 "out" ]
-.code_out
-dw [ .exec_out ]
-nop
-.exec_out
+@defprim "out" out
     pop tr1
     out %text tr1
     jmp .next
 
-.head_word
-dw [ .head_out 0x03 "word" ]
-.code_word
-dw [ .exec_word ]
-nop
-.exec_word
+@defprim "word" word
     cal .word
     psh tr2
     psh tr1
     jmp .next
 
-.head_tell
-dw [ .head_word 0x03 "tell" ]
-.code_tell
-dw [ .exec_tell ]
-nop
-.exec_tell
+@defprim "tell" tell
     pop tr1
     pop tr2
     cal .tell
     jmp .next
 
-.head_find
-dw [ .head_tell 0x03 "find" ]
-.code_find
-dw [ .exec_find ]
-nop
-.exec_find
+@defprim "find" find
     pop tr1
     pop tr2
     cal .find
     psh tr1
     jmp .next
 
-.head_number
-dw [ .head_find 0x05 "number" ]
-.code_number
-dw [ .exec_number ]
-nop
-.exec_number
+@defprim "number" number
     pop tr1
     pop tr2
     cal .number
@@ -525,12 +363,7 @@ nop
     psh tr1
     jmp .next
 
-.head_repl
-dw [ .head_number 0x03 "repl" ]
-.code_repl
-dw [ .exec_repl ]
-nop
-.exec_repl
+@defprim "repl" repl
     cal .word
     psh tr1
     psh tr2
@@ -576,23 +409,14 @@ nop
 
 /////////////////////////// FORTH //////////////////////////
 
-.head_abort
-dw [ .head_repl 0x04 "abort" ]
-.code_abort
-dw [ .run_func ]
+@defforth "abort" abort
 dw [ .code_trs .code_rsppoke .code_repl .code_jmp -4 ]
 
-.head_colon
-dw [ .head_abort 0x00 ":" ]
-.code_colon
-dw [ .run_func ]
+@defforth ":" colon
 dw [ .code_word .code_create .code_litn .run_func .code_append ]
 dw [ .code_last .code_peek .code_hidden .code_compile .code_exit ]
 
 .dict_last
-.head_semicol
-dw [ .head_colon 0x80 ";" ]
-.code_semicol
-dw [ .run_func ]
+@defforthi ";" semicol
 dw [ .code_litn .code_exit .code_append ]
 dw [ .code_last .code_peek .code_hidden .code_interpret .code_exit ]
