@@ -361,8 +361,7 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 @defprim "not" bitnot
     pop tr1
-    pop tr2
-    and tr1 tr1 tr2
+    not tr1 tr1
     psh tr1
     jmp .next
 

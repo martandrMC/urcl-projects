@@ -518,8 +518,7 @@ dw [ .exec_bitnot ]
 nop
 .exec_bitnot
     pop tr1
-    pop tr2
-    and tr1 tr1 tr2
+    not tr1 tr1
     psh tr1
     jmp .next
 
