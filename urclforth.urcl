@@ -1,8 +1,8 @@
 run rom
 bits 16
 
-// Total RAM = 512 Cells (1 KiB)
-minheap 184
+// Total RAM = 1024 Cells (2 KiB)
+minheap 558
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -246,95 +246,8 @@ dw [ .run_const .run_const ]
 
 //////////////////////// PRIMITIVES ////////////////////////
 
-.head_exit
-dw [ .head_iconst 0x03 "exit" ]
-.code_exit
-dw [ .exec_exit ]
-nop
-.exec_exit
-    lod vip rsp
-    inc rsp rsp
-    jmp .next
-
-.head_litn
-dw [ .head_exit 0x03 "litn" ]
-.code_litn
-dw [ .exec_litn ]
-nop
-.exec_litn
-    lod tr1 vip
-    inc vip vip
-    psh tr1
-    jmp .next
-
-.head_peek
-dw [ .head_litn 0x00 "@" ]
-.code_peek
-dw [ .exec_peek ]
-nop
-.exec_peek
-    pop tr1
-    lod tr1 tr1
-    psh tr1
-    jmp .next
-
-.head_poke
-dw [ .head_peek 0x00 "!" ]
-.code_poke
-dw [ .exec_poke ]
-nop
-.exec_poke
-    pop tr1
-    pop tr2
-    str tr1 tr2
-    jmp .next
-
-.head_add
-dw [ .head_poke 0x00 "+" ]
-.code_add
-dw [ .exec_add ]
-nop
-.exec_add
-    pop tr1
-    pop tr2
-    add tr1 tr1 tr2
-    psh tr1
-    jmp .next
-
-.head_dot
-dw [ .head_add 0x00 "." ]
-.code_dot
-dw [ .exec_dot ]
-nop
-.exec_dot
-    pop tr1
-    out %numb tr1
-    jmp .next
-
-.head_dtor
-dw [ .head_dot 0x02 "d>r" ]
-.code_dtor
-dw [ .exec_dtor ]
-nop
-.exec_dtor
-    pop tr1
-    dec rsp rsp
-    str rsp tr1
-    jmp .next
-
-.head_rtod
-dw [ .head_dtor 0x02 "r>d" ]
-.code_rtod
-dw [ .exec_rtod ]
-nop
-.exec_rtod
-    lod tr1 rsp
-    inc rsp rsp
-    psh tr1
-    jmp .next
-
 .head_rsppeek
-dw [ .head_rtod 0x03 "rsp@" ]
+dw [ .head_iconst 0x03 "rsp@" ]
 .code_rsppeek
 dw [ .exec_rsppeek ]
 nop
@@ -369,8 +282,273 @@ nop
     pop dsp
     jmp .next
 
+.head_dtor
+dw [ .head_dsppoke 0x02 "d>r" ]
+.code_dtor
+dw [ .exec_dtor ]
+nop
+.exec_dtor
+    pop tr1
+    dec rsp rsp
+    str rsp tr1
+    jmp .next
+
+.head_rtod
+dw [ .head_dtor 0x02 "r>d" ]
+.code_rtod
+dw [ .exec_rtod ]
+nop
+.exec_rtod
+    lod tr1 rsp
+    inc rsp rsp
+    psh tr1
+    jmp .next
+
+.head_peek
+dw [ .head_rtod 0x00 "@" ]
+.code_peek
+dw [ .exec_peek ]
+nop
+.exec_peek
+    pop tr1
+    lod tr1 tr1
+    psh tr1
+    jmp .next
+
+.head_poke
+dw [ .head_peek 0x00 "!" ]
+.code_poke
+dw [ .exec_poke ]
+nop
+.exec_poke
+    pop tr1
+    pop tr2
+    str tr1 tr2
+    jmp .next
+
+.head_incpoke
+dw [ .head_poke 0x01 "+!" ]
+.code_incpoke
+dw [ .exec_incpoke ]
+nop
+.exec_incpoke
+    pop tr1
+    lod tr2 tr1
+    inc tr2 tr2
+    str tr1 tr2
+    jmp .next
+
+.head_decpoke
+dw [ .head_incpoke 0x01 "-!" ]
+.code_decpoke
+dw [ .exec_decpoke ]
+nop
+.exec_decpoke
+    pop tr1
+    lod tr2 tr1
+    dec tr2 tr2
+    str tr1 tr2
+    jmp .next
+
+.head_drop
+dw [ .head_decpoke 0x03 "drop" ]
+.code_drop
+dw [ .exec_drop ]
+nop
+.exec_drop
+    pop tr1
+    jmp .next
+
+.head_swap
+dw [ .head_drop 0x03 "swap" ]
+.code_swap
+dw [ .exec_swap ]
+nop
+.exec_swap
+    pop tr1
+    pop tr2
+    psh tr1
+    psh tr2
+    jmp .next
+
+.head_dup
+dw [ .head_swap 0x02 "dup" ]
+.code_dup
+dw [ .exec_dup ]
+nop
+.exec_dup
+    lod tr1 dsp
+    psh tr1
+    jmp .next
+
+.head_over
+dw [ .head_dup 0x03 "over" ]
+.code_over
+dw [ .exec_over ]
+nop
+.exec_over
+    llod tr1 dsp 1
+    psh tr1
+    jmp .next
+
+.head_rot
+dw [ .head_over 0x02 "rot" ]
+.code_rot
+dw [ .exec_rot ]
+nop
+.exec_rot
+    pop tr1
+    pop tr2
+    pop tr3
+    psh tr2
+    psh tr1
+    psh tr3
+    jmp .next
+
+.head_inc
+dw [ .head_rot 0x01 "1+" ]
+.code_inc
+dw [ .exec_inc ]
+nop
+.exec_inc
+    lod tr1 dsp
+    inc tr1 tr1
+    str dsp tr1
+    jmp .next
+
+.head_dec
+dw [ .head_inc 0x01 "1-" ]
+.code_dec
+dw [ .exec_dec ]
+nop
+.exec_dec
+    lod tr1 dsp
+    dec tr1 tr1
+    str dsp tr1
+    jmp .next
+
+.head_add
+dw [ .head_dec 0x00 "+" ]
+.code_add
+dw [ .exec_add ]
+nop
+.exec_add
+    pop tr1
+    pop tr2
+    add tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+.head_sub
+dw [ .head_add 0x00 "-" ]
+.code_sub
+dw [ .exec_sub ]
+nop
+.exec_sub
+    pop tr1
+    pop tr2
+    sub tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+.head_equals
+dw [ .head_sub 0x00 "=" ]
+.code_equals
+dw [ .exec_equals ]
+nop
+.exec_equals
+    pop tr1
+    pop tr2
+    sete tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+.head_greater
+dw [ .head_equals 0x00 ">" ]
+.code_greater
+dw [ .exec_greater ]
+nop
+.exec_greater
+    pop tr1
+    pop tr2
+    setg tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+.head_bitand
+dw [ .head_greater 0x00 "&" ]
+.code_bitand
+dw [ .exec_bitand ]
+nop
+.exec_bitand
+    pop tr1
+    pop tr2
+    and tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+.head_bitor
+dw [ .head_bitand 0x00 "|" ]
+.code_bitor
+dw [ .exec_bitor ]
+nop
+.exec_bitor
+    pop tr1
+    pop tr2
+    or  tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+.head_bitxor
+dw [ .head_bitor 0x00 "^" ]
+.code_bitxor
+dw [ .exec_bitxor ]
+nop
+.exec_bitxor
+    pop tr1
+    pop tr2
+    xor tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+.head_bitnot
+dw [ .head_bitxor 0x02 "not" ]
+.code_bitnot
+dw [ .exec_bitnot ]
+nop
+.exec_bitnot
+    pop tr1
+    pop tr2
+    and tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+.head_litn
+dw [ .head_bitnot 0x03 "litn" ]
+.code_litn
+dw [ .exec_litn ]
+nop
+.exec_litn
+    lod tr1 vip
+    inc vip vip
+    psh tr1
+    jmp .next
+
+.head_lits
+dw [ .head_litn 0x03 "lits" ]
+.code_lits
+dw [ .exec_lits ]
+nop
+.exec_lits
+    lod tr1 vip
+    inc tr2 vip
+    add vip tr2 tr1
+    psh tr2
+    psh tr1
+    jmp .next
+
 .head_jmp
-dw [ .head_dsppoke 0x02 "jmp" ]
+dw [ .head_lits 0x02 "jmp" ]
 .code_jmp
 dw [ .exec_jmp ]
 nop
@@ -390,8 +568,18 @@ nop
     inc vip vip
     jmp .next
 
+.head_exit
+dw [ .head_brz 0x03 "exit" ]
+.code_exit
+dw [ .exec_exit ]
+nop
+.exec_exit
+    lod vip rsp
+    inc rsp rsp
+    jmp .next
+
 .head_interpret
-dw [ .head_brz 0x80 "[" ]
+dw [ .head_exit 0x80 "[" ]
 .code_interpret
 dw [ .exec_interpret ]
 nop
@@ -412,12 +600,12 @@ nop
     lstr .code_state 1 tr1
     jmp .next
 
-.head_hidden
-dw [ .head_compile 0x05 "hidden" ]
-.code_hidden
-dw [ .exec_hidden ]
+.head_hide
+dw [ .head_compile 0x03 "hide" ]
+.code_hide
+dw [ .exec_hide ]
 nop
-.exec_hidden
+.exec_hide
     pop tr1
     llod tr2 tr1 1
     xor tr2 tr2 FLAG_HIDDEN
@@ -425,7 +613,7 @@ nop
     jmp .next
 
 .head_runimm
-dw [ .head_hidden 0x85 "runimm" ]
+dw [ .head_hide 0x85 "runimm" ]
 .code_runimm
 dw [ .exec_runimm ]
 nop
@@ -457,8 +645,32 @@ nop
     cal .append
     jmp .next
 
+.head_tocfa
+dw [ .head_append 0x03 ">cfa" ]
+.code_tocfa
+dw [ .exec_tocfa ]
+nop
+.exec_tocfa
+    pop tr1
+    llod tr2 tr1 1
+    and tr2 tr2 MASK_LENGTH
+    add tr1 tr1 tr2
+    add tr1 tr1 3
+    psh tr1
+    jmp .next
+
+.head_exec
+dw [ .head_tocfa 0x03 "exec" ]
+.code_exec
+dw [ .exec_exec ]
+nop
+.exec_exec
+    pop cfa
+    lod tr1 cfa
+    jmp tr1
+
 .head_inp
-dw [ .head_append 0x02 "inp" ]
+dw [ .head_exec 0x02 "inp" ]
 .code_inp
 dw [ .exec_inp ]
 nop
@@ -478,8 +690,18 @@ nop
     out %text tr1
     jmp .next
 
+.head_dot
+dw [ .head_out 0x00 "." ]
+.code_dot
+dw [ .exec_dot ]
+nop
+.exec_dot
+    pop tr1
+    out %numb tr1
+    jmp .next
+
 .head_word
-dw [ .head_out 0x03 "word" ]
+dw [ .head_dot 0x03 "word" ]
 .code_word
 dw [ .exec_word ]
 nop
@@ -500,20 +722,8 @@ nop
     cal .tell
     jmp .next
 
-.head_find
-dw [ .head_tell 0x03 "find" ]
-.code_find
-dw [ .exec_find ]
-nop
-.exec_find
-    pop tr1
-    pop tr2
-    cal .find
-    psh tr1
-    jmp .next
-
 .head_number
-dw [ .head_find 0x05 "number" ]
+dw [ .head_tell 0x05 "number" ]
 .code_number
 dw [ .exec_number ]
 nop
@@ -525,8 +735,20 @@ nop
     psh tr1
     jmp .next
 
+.head_find
+dw [ .head_number 0x03 "find" ]
+.code_find
+dw [ .exec_find ]
+nop
+.exec_find
+    pop tr1
+    pop tr2
+    cal .find
+    psh tr1
+    jmp .next
+
 .head_repl
-dw [ .head_number 0x03 "repl" ]
+dw [ .head_find 0x03 "repl" ]
 .code_repl
 dw [ .exec_repl ]
 nop
@@ -582,12 +804,30 @@ dw [ .head_repl 0x04 "abort" ]
 dw [ .run_func ]
 dw [ .code_trs .code_rsppoke .code_repl .code_jmp -4 ]
 
+.head_cfaof
+dw [ .head_abort 0x04 "cfaof" ]
+.code_cfaof
+dw [ .run_func ]
+dw [ .code_word .code_find .code_tocfa .code_exit ]
+
+.head_unlist
+dw [ .head_cfaof 0x05 "unlist" ]
+.code_unlist
+dw [ .run_func ]
+dw [ .code_word .code_find .code_hide .code_exit ]
+
+.head_char
+dw [ .head_unlist 0x03 "char" ]
+.code_char
+dw [ .run_func ]
+dw [ .code_word .code_drop .code_peek .code_exit ]
+
 .head_colon
-dw [ .head_abort 0x00 ":" ]
+dw [ .head_char 0x00 ":" ]
 .code_colon
 dw [ .run_func ]
 dw [ .code_word .code_create .code_litn .run_func .code_append ]
-dw [ .code_last .code_peek .code_hidden .code_compile .code_exit ]
+dw [ .code_last .code_peek .code_hide .code_compile .code_exit ]
 
 .dict_last
 .head_semicol
@@ -595,4 +835,4 @@ dw [ .head_colon 0x80 ";" ]
 .code_semicol
 dw [ .run_func ]
 dw [ .code_litn .code_exit .code_append ]
-dw [ .code_last .code_peek .code_hidden .code_interpret .code_exit ]
+dw [ .code_last .code_peek .code_hide .code_interpret .code_exit ]

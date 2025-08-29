@@ -1,8 +1,8 @@
 run rom
 bits 16
 
-// Total RAM = 512 Cells (1 KiB)
-minheap 184
+// Total RAM = 1024 Cells (2 KiB)
+minheap 558
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -214,53 +214,6 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 //////////////////////// PRIMITIVES ////////////////////////
 
-@defprim "exit" exit
-    lod vip rsp
-    inc rsp rsp
-    jmp .next
-
-@defprim "litn" litn
-    lod tr1 vip
-    inc vip vip
-    psh tr1
-    jmp .next
-
-@defprim "@" peek
-    pop tr1
-    lod tr1 tr1
-    psh tr1
-    jmp .next
-
-@defprim "!" poke
-    pop tr1
-    pop tr2
-    str tr1 tr2
-    jmp .next
-
-@defprim "+" add
-    pop tr1
-    pop tr2
-    add tr1 tr1 tr2
-    psh tr1
-    jmp .next
-
-@defprim "." dot
-    pop tr1
-    out %numb tr1
-    jmp .next
-
-@defprim "d>r" dtor
-    pop tr1
-    dec rsp rsp
-    str rsp tr1
-    jmp .next
-
-@defprim "r>d" rtod
-    lod tr1 rsp
-    inc rsp rsp
-    psh tr1
-    jmp .next
-
 @defprim "rsp@" rsppeek
     psh rsp
     jmp .next
@@ -277,6 +230,156 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     pop dsp
     jmp .next
 
+@defprim "d>r" dtor
+    pop tr1
+    dec rsp rsp
+    str rsp tr1
+    jmp .next
+
+@defprim "r>d" rtod
+    lod tr1 rsp
+    inc rsp rsp
+    psh tr1
+    jmp .next
+
+@defprim "@" peek
+    pop tr1
+    lod tr1 tr1
+    psh tr1
+    jmp .next
+
+@defprim "!" poke
+    pop tr1
+    pop tr2
+    str tr1 tr2
+    jmp .next
+
+@defprim "+!" incpoke
+    pop tr1
+    lod tr2 tr1
+    inc tr2 tr2
+    str tr1 tr2
+    jmp .next
+
+@defprim "-!" decpoke
+    pop tr1
+    lod tr2 tr1
+    dec tr2 tr2
+    str tr1 tr2
+    jmp .next
+
+@defprim "drop" drop
+    pop tr1
+    jmp .next
+
+@defprim "swap" swap
+    pop tr1
+    pop tr2
+    psh tr1
+    psh tr2
+    jmp .next
+
+@defprim "dup" dup
+    lod tr1 dsp
+    psh tr1
+    jmp .next
+
+@defprim "over" over
+    llod tr1 dsp 1
+    psh tr1
+    jmp .next
+
+@defprim "rot" rot
+    pop tr1
+    pop tr2
+    pop tr3
+    psh tr2
+    psh tr1
+    psh tr3
+    jmp .next
+
+@defprim "1+" inc
+    lod tr1 dsp
+    inc tr1 tr1
+    str dsp tr1
+    jmp .next
+
+@defprim "1-" dec
+    lod tr1 dsp
+    dec tr1 tr1
+    str dsp tr1
+    jmp .next
+
+@defprim "+" add
+    pop tr1
+    pop tr2
+    add tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+@defprim "-" sub
+    pop tr1
+    pop tr2
+    sub tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+@defprim "=" equals
+    pop tr1
+    pop tr2
+    sete tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+@defprim ">" greater
+    pop tr1
+    pop tr2
+    setg tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+@defprim "&" bitand
+    pop tr1
+    pop tr2
+    and tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+@defprim "|" bitor
+    pop tr1
+    pop tr2
+    or  tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+@defprim "^" bitxor
+    pop tr1
+    pop tr2
+    xor tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+@defprim "not" bitnot
+    pop tr1
+    pop tr2
+    and tr1 tr1 tr2
+    psh tr1
+    jmp .next
+
+@defprim "litn" litn
+    lod tr1 vip
+    inc vip vip
+    psh tr1
+    jmp .next
+
+@defprim "lits" lits
+    lod tr1 vip
+    inc tr2 vip
+    add vip tr2 tr1
+    psh tr2
+    psh tr1
+    jmp .next
+
 @defprim "jmp" jmp
     lod tr1 vip
     add vip vip tr1
@@ -286,6 +389,11 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     pop tr1
     brz .exec_jmp tr1
     inc vip vip
+    jmp .next
+
+@defprim "exit" exit
+    lod vip rsp
+    inc rsp rsp
     jmp .next
 
 @defprimi "[" interpret
@@ -300,7 +408,7 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     lstr .code_state 1 tr1
     jmp .next
 
-@defprim "hidden" hidden
+@defprim "hide" hide
     pop tr1
     llod tr2 tr1 1
     xor tr2 tr2 FLAG_HIDDEN
@@ -325,6 +433,20 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     cal .append
     jmp .next
 
+@defprim ">cfa" tocfa
+    pop tr1
+    llod tr2 tr1 1
+    and tr2 tr2 MASK_LENGTH
+    add tr1 tr1 tr2
+    add tr1 tr1 3
+    psh tr1
+    jmp .next
+
+@defprim "exec" exec
+    pop cfa
+    lod tr1 cfa
+    jmp tr1
+
 @defprim "inp" inp
     in  tr1 %text
     out %text tr2
@@ -334,6 +456,11 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 @defprim "out" out
     pop tr1
     out %text tr1
+    jmp .next
+
+@defprim "." dot
+    pop tr1
+    out %numb tr1
     jmp .next
 
 @defprim "word" word
@@ -348,18 +475,18 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     cal .tell
     jmp .next
 
-@defprim "find" find
-    pop tr1
-    pop tr2
-    cal .find
-    psh tr1
-    jmp .next
-
 @defprim "number" number
     pop tr1
     pop tr2
     cal .number
     psh tr2
+    psh tr1
+    jmp .next
+
+@defprim "find" find
+    pop tr1
+    pop tr2
+    cal .find
     psh tr1
     jmp .next
 
@@ -412,11 +539,20 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 @defforth "abort" abort
 dw [ .code_trs .code_rsppoke .code_repl .code_jmp -4 ]
 
+@defforth "cfaof" cfaof
+dw [ .code_word .code_find .code_tocfa .code_exit ]
+
+@defforth "unlist" unlist
+dw [ .code_word .code_find .code_hide .code_exit ]
+
+@defforth "char" char
+dw [ .code_word .code_drop .code_peek .code_exit ]
+
 @defforth ":" colon
 dw [ .code_word .code_create .code_litn .run_func .code_append ]
-dw [ .code_last .code_peek .code_hidden .code_compile .code_exit ]
+dw [ .code_last .code_peek .code_hide .code_compile .code_exit ]
 
 .dict_last
 @defforthi ";" semicol
 dw [ .code_litn .code_exit .code_append ]
-dw [ .code_last .code_peek .code_hidden .code_interpret .code_exit ]
+dw [ .code_last .code_peek .code_hide .code_interpret .code_exit ]
