@@ -862,7 +862,7 @@ nop
 .head_abort
 dw [ .head_repl 0x04 "abort" ]
 .code_abort
-dw [ .run_func ]
+dw [ .run_proc ]
 dw [ .code_litn .src_preload_state .code_peek .code_litn 2 ]
 dw [ .code_equals .code_brz 11 .code_lits 7 "Ready.\n" .code_tell ]
 dw [ .code_trs .code_rsppoke .code_word .code_repl .code_jmp -5 ]
@@ -870,7 +870,7 @@ dw [ .code_trs .code_rsppoke .code_word .code_repl .code_jmp -5 ]
 .head_colon
 dw [ .head_abort 0x00 ":" ]
 .code_colon
-dw [ .run_func ]
+dw [ .run_proc ]
 dw [ .code_word .code_create .code_litn .run_proc .code_append ]
 dw [ .code_last .code_peek .code_hide .code_compile .code_exit ]
 
@@ -878,6 +878,6 @@ dw [ .code_last .code_peek .code_hide .code_compile .code_exit ]
 .head_semicol
 dw [ .head_colon 0x80 ";" ]
 .code_semicol
-dw [ .run_func ]
+dw [ .run_proc ]
 dw [ .code_litn .code_exit .code_append ]
 dw [ .code_last .code_peek .code_hide .code_interpret .code_exit ]

@@ -22,7 +22,7 @@ nop
 """.head_{label}
 dw [ {last} 0x{length:02X} {name} ]
 .code_{label}
-dw [ .run_func ]
+dw [ .run_proc ]
 """,
 """
 .head_{label}
