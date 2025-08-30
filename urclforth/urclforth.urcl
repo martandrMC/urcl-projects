@@ -2,7 +2,7 @@ run rom
 bits 16
 
 // Total RAM = 1024 Cells (2 KiB)
-minheap 558
+minheap 566
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -52,9 +52,6 @@ imm cfa .code_abort
 lod tr1 cfa
 jmp tr1
 
-@debug
-hlt // we should never reach here
-
 ////////////////////////////////////////////////////////////
 //                   RUNTIME ESSENTIALS                   //
 ////////////////////////////////////////////////////////////
@@ -67,10 +64,10 @@ hlt // we should never reach here
     lod tr1 cfa
     jmp tr1
 
-// CFA of function words points to this
+// CFA of procedure words points to this
 // Saves the VIP to the RS and jumps to the
 // word sequence in the DFA of the word
-.run_func
+.run_proc
     dec rsp rsp
     str rsp vip
     add vip cfa 1
@@ -94,6 +91,37 @@ hlt // we should never reach here
 //                    HELPER FUNCTIONS                    //
 ////////////////////////////////////////////////////////////
 
+.inp
+    llod tr2 .src_preload_state 0
+    sbrl .inp_storage tr2 1
+    bre .inp_hasinit tr2 2
+    lstr .src_preload_state 0 2
+    imm cfa .code_abort
+    lod tr1 cfa
+    jmp tr1
+    .inp_hasinit
+    in  tr2 %text
+    out %text tr2
+    ret
+    .inp_storage
+    not tr2 tr2
+    lstr .src_preload_state 0 tr2
+    llod tr3 .src_preload_state 1
+    out %addr tr3
+    bnz .inp_noinc tr2
+        inc tr3 tr3
+        in  tr4 %addr
+        bne ~+2 tr3 tr4
+        lstr .src_preload_state 0 1
+        lstr .src_preload_state 1 tr3
+    .inp_noinc
+    mov tr4 tr2
+    in  tr2 %bus
+    brz ~+2 tr4
+    bsr tr2 tr2 8
+    and tr2 tr2 0xFF
+    ret
+
 .tell
     brz .tell_done tr1
         lod tr3 tr2
@@ -107,15 +135,13 @@ hlt // we should never reach here
 .word
     imm tr1 0
     .word_loop1
-        in  tr2 %text
-        out %text tr2
+        cal .inp
     ble .word_loop1 tr2 ' '
     .word_loop2
         lstr .word_buffer tr1 tr2
         inc tr1 tr1
         bre .word_skip tr1 16
-        in  tr2 %text
-        out %text tr2
+        cal .inp
     brg .word_loop2 tr2 ' '
     .word_skip
     imm tr2 .word_buffer
@@ -167,12 +193,11 @@ hlt // we should never reach here
     ret
 
 .create
-    and tr1 tr1 MASK_LENGTH
-    brz .create_exit tr1
     llod tr3 .code_free 1
     llod tr4 .code_last 1
     lstr .code_last 1 tr3
     lstr tr3 0 tr4
+    and tr1 tr1 MASK_LENGTH
     dec tr4 tr1
     lstr tr3 1 tr4
     add tr3 tr3 2
@@ -196,6 +221,9 @@ hlt // we should never reach here
 ////////////////////////////////////////////////////////////
 //                INITIAL WORD DICTIONARY                 //
 ////////////////////////////////////////////////////////////
+
+.src_preload_state // 0=upper,-1=lower,1=loaded,2=done %addr
+dw [ 0 0 ]
 
 .word_buffer // Maximum 16 chars between whitespaces
 dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
@@ -229,13 +257,13 @@ dw [ .head_tds 0x02 "trs" ]
 .code_trs
 dw [ .run_const 0 ]
 
-.head_ifunc
-dw [ .head_trs 0x04 "ifunc" ]
-.code_ifunc
-dw [ .run_const .run_func ]
+.head_iproc
+dw [ .head_trs 0x04 "iproc" ]
+.code_iproc
+dw [ .run_const .run_proc ]
 
 .head_ivar
-dw [ .head_ifunc 0x03 "ivar" ]
+dw [ .head_iproc 0x03 "ivar" ]
 .code_ivar
 dw [ .run_const .run_var ]
 
@@ -356,7 +384,7 @@ dw [ .head_decpoke 0x03 "drop" ]
 dw [ .exec_drop ]
 nop
 .exec_drop
-    pop tr1
+    inc dsp dsp
     jmp .next
 
 .head_swap
@@ -451,8 +479,44 @@ nop
     psh tr1
     jmp .next
 
+.head_mult
+dw [ .head_sub 0x00 "*" ]
+.code_mult
+dw [ .exec_mult ]
+nop
+.exec_mult
+    pop tr1
+    pop tr2
+    mlt tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+.head_div
+dw [ .head_mult 0x00 "/" ]
+.code_div
+dw [ .exec_div ]
+nop
+.exec_div
+    pop tr1
+    pop tr2
+    div tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
+.head_mod
+dw [ .head_div 0x00 "%" ]
+.code_mod
+dw [ .exec_mod ]
+nop
+.exec_mod
+    pop tr1
+    pop tr2
+    mod tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
 .head_equals
-dw [ .head_sub 0x00 "=" ]
+dw [ .head_mod 0x00 "=" ]
 .code_equals
 dw [ .exec_equals ]
 nop
@@ -635,7 +699,7 @@ nop
     jmp .next
 
 .head_append
-dw [ .head_create 0x05 "append" ]
+dw [ .head_create 0x00 "," ]
 .code_append
 dw [ .exec_append ]
 nop
@@ -674,9 +738,8 @@ dw [ .head_exec 0x02 "inp" ]
 dw [ .exec_inp ]
 nop
 .exec_inp
-    in  tr1 %text
-    out %text tr2
-    psh tr1
+    cal .inp
+    psh tr2
     jmp .next
 
 .head_out
@@ -752,18 +815,16 @@ dw [ .head_find 0x03 "repl" ]
 dw [ .exec_repl ]
 nop
 .exec_repl
-    cal .word
-    psh tr1
-    psh tr2
+    llod tr1 dsp 0
+    llod tr2 dsp 1
     cal .find
-    pop tr2
     brz .exec_repl_nodict tr1
+        add dsp dsp 2
         llod tr2 tr1 1
         and tr4 tr2 FLAG_RUNIMM
         and tr2 tr2 MASK_LENGTH
         add tr2 tr2 3
         add cfa tr1 tr2
-        pop tr1
         bnz .exec_repl_dict_interp tr4
         llod tr4 .code_state 1
         brz .exec_repl_dict_interp tr4
@@ -775,6 +836,7 @@ nop
         jmp tr1
     .exec_repl_nodict
     pop tr1
+    pop tr2
     cal .number
     bnz .exec_repl_error tr1
         llod tr4 .code_state 1
@@ -801,31 +863,15 @@ nop
 dw [ .head_repl 0x04 "abort" ]
 .code_abort
 dw [ .run_func ]
-dw [ .code_trs .code_rsppoke .code_repl .code_jmp -4 ]
-
-.head_cfaof
-dw [ .head_abort 0x04 "cfaof" ]
-.code_cfaof
-dw [ .run_func ]
-dw [ .code_word .code_find .code_tocfa .code_exit ]
-
-.head_unlist
-dw [ .head_cfaof 0x05 "unlist" ]
-.code_unlist
-dw [ .run_func ]
-dw [ .code_word .code_find .code_hide .code_exit ]
-
-.head_char
-dw [ .head_unlist 0x03 "char" ]
-.code_char
-dw [ .run_func ]
-dw [ .code_word .code_drop .code_peek .code_exit ]
+dw [ .code_litn .src_preload_state .code_peek .code_litn 2 ]
+dw [ .code_equals .code_brz 11 .code_lits 7 "Ready.\n" .code_tell ]
+dw [ .code_trs .code_rsppoke .code_word .code_repl .code_jmp -5 ]
 
 .head_colon
-dw [ .head_char 0x00 ":" ]
+dw [ .head_abort 0x00 ":" ]
 .code_colon
 dw [ .run_func ]
-dw [ .code_word .code_create .code_litn .run_func .code_append ]
+dw [ .code_word .code_create .code_litn .run_proc .code_append ]
 dw [ .code_last .code_peek .code_hide .code_compile .code_exit ]
 
 .dict_last
