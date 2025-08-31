@@ -2,7 +2,7 @@ run rom
 bits 16
 
 // Total RAM = 1024 Cells (2 KiB)
-minheap 566
+minheap 557
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -66,22 +66,37 @@ jmp tr1
 
 // CFA of procedure words points to this
 // Saves the VIP to the RS and jumps to the
-// word sequence in the DFA of the word
+// word sequence in the DF of the word
 .run_proc
     dec rsp rsp
     str rsp vip
     add vip cfa 1
     jmp .next
 
+// CFA of patch words points to this
+// Saves the VIP to the RS, jumps to the
+// word sequence pointed to by the cell
+// after the CF and pushes the address
+// of the address after that to the DS
+.run_patch
+    dec rsp rsp
+    str rsp vip
+    llod vip cfa 1
+    add tr1 cfa 2
+    psh tr1
+    jmp .next
+
 // CFA of constant words points to this
-// Pushes to the DS the first cell of the DFA of the word
+// Pushes to the DS the first cell of
+// the DF of the word
 .run_const
     llod tr1 cfa 1
     psh tr1
     jmp .next
 
 // CFA of variable words points to this
-// Pushes to the DS the address of the DFA of the word
+// Pushes to the DS the address of
+// the DF of the word
 .run_var
     add tr1 cfa 1
     psh tr1
@@ -94,11 +109,6 @@ jmp tr1
 .inp
     llod tr2 .src_preload_state 0
     sbrl .inp_storage tr2 1
-    bre .inp_hasinit tr2 2
-    lstr .src_preload_state 0 2
-    imm cfa .code_abort
-    lod tr1 cfa
-    jmp tr1
     .inp_hasinit
     in  tr2 %text
     out %text tr2
@@ -222,7 +232,7 @@ jmp tr1
 //                INITIAL WORD DICTIONARY                 //
 ////////////////////////////////////////////////////////////
 
-.src_preload_state // 0=upper,-1=lower,1=loaded,2=done %addr
+.src_preload_state // 0=upper,-1=lower,1=done %addr
 dw [ 0 0 ]
 
 .word_buffer // Maximum 16 chars between whitespaces
@@ -236,19 +246,19 @@ dw [ 0 0x04 "state" ]
 .code_state
 dw [ .run_var 0 ]
 
-.head_last
-dw [ .head_state 0x03 "last" ]
-.code_last
-dw [ .run_var .dict_last ]
-
 .head_free
-dw [ .head_last 0x03 "free" ]
+dw [ .head_state 0x03 "free" ]
 .code_free
 dw [ .run_var M0 ]
 
+.head_last
+dw [ .head_free 0x03 "last" ]
+.code_last
+dw [ .run_var .dict_last ]
+
 
 .head_tds
-dw [ .head_free 0x02 "tds" ]
+dw [ .head_last 0x02 "tds" ]
 .code_tds
 dw [ .run_const 0 ]
 
@@ -262,8 +272,13 @@ dw [ .head_trs 0x04 "iproc" ]
 .code_iproc
 dw [ .run_const .run_proc ]
 
+.head_ipatch
+dw [ .head_iproc 0x05 "ipatch" ]
+.code_ipatch
+dw [ .run_const .run_patch ]
+
 .head_ivar
-dw [ .head_iproc 0x03 "ivar" ]
+dw [ .head_ipatch 0x03 "ivar" ]
 .code_ivar
 dw [ .run_const .run_var ]
 
@@ -863,21 +878,33 @@ nop
 dw [ .head_repl 0x04 "abort" ]
 .code_abort
 dw [ .run_proc ]
-dw [ .code_litn .src_preload_state .code_peek .code_litn 2 ]
-dw [ .code_equals .code_brz 11 .code_lits 7 "Ready.\n" .code_tell ]
-dw [ .code_trs .code_rsppoke .code_word .code_repl .code_jmp -5 ]
+dw [ .code_trs .code_rsppoke ] // Clear RS
+dw [ .code_word .code_repl ]   // Handle token
+dw [ .code_jmp -5 ]            // Repeat
 
 .head_colon
 dw [ .head_abort 0x00 ":" ]
 .code_colon
 dw [ .run_proc ]
-dw [ .code_word .code_create .code_litn .run_proc .code_append ]
-dw [ .code_last .code_peek .code_hide .code_compile .code_exit ]
+dw [ .code_word .code_create ]          // New named entry
+dw [ .code_iproc .code_append ]         // Procedure word
+dw [ .code_last .code_peek .code_hide ] // Hide it for now
+dw [ .code_compile .code_exit ]         // Change state
 
-.dict_last
 .head_semicol
 dw [ .head_colon 0x80 ";" ]
 .code_semicol
 dw [ .run_proc ]
-dw [ .code_litn .code_exit .code_append ]
-dw [ .code_last .code_peek .code_hide .code_interpret .code_exit ]
+dw [ .code_litn .code_exit .code_append ] // Finalize word
+dw [ .code_last .code_peek .code_hide ]   // Unhide it
+dw [ .code_interpret .code_exit ]         // Change state
+
+.dict_last
+.head_patch
+dw [ .head_semicol 0x04 "patch" ]
+.code_patch
+dw [ .run_proc ]
+dw [ .code_rtod ] // Start of patch; don't return to it
+dw [ .code_last .code_peek .code_tocfa ]  // CFA of last
+dw [ .code_ipatch .code_over .code_poke ] // Custom word
+dw [ .code_inc .code_poke .code_exit ]    // Store after
