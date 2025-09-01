@@ -240,59 +240,69 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 /////////////////// CONSTANTS + VARIABLES //////////////////
 
-@defvar "state" state 0
-@defvar "free"  free  M0
-@defvar "last"  last  .dict_last
+@defvar "state" state 0          // 0=Interpret, 1=Compile
+@defvar "free"  free  M0         // First free cell
+@defvar "last"  last  .dict_last // Last-defined word entry
 
-@defconst "tds" tds 0
-@defconst "trs" trs 0
-@defconst "iproc"  iproc  .run_proc
-@defconst "ipatch" ipatch .run_patch
-@defconst "ivar"   ivar   .run_var
-@defconst "iconst" iconst .run_const
+@defconst "tds" tds 0 // Top of Data Stack
+@defconst "trs" trs 0 // Top of Return Stack
+@defconst "iproc"  iproc  .run_proc  // CFA for Procedures
+@defconst "ipatch" ipatch .run_patch // CFA for Patch Words
+@defconst "ivar"   ivar   .run_var   // CFA for Variables
+@defconst "iconst" iconst .run_const // CFA for Constants
 
 //////////////////////// PRIMITIVES ////////////////////////
 
+// Get the value of the Return Stack Pointer on the DS
 @defprim "rsp@" rsppeek
     psh rsp
     jmp .next
 
+// Store the value on the DS to the Return Stack Pointer
 @defprim "rsp!" rsppoke
     pop rsp
     jmp .next
 
+// Get the value of the Data Stack Pointer on the DS
 @defprim "dsp@" dsppeek
     psh dsp
     jmp .next
 
+// Store the value on the DS to the Data Stack Pointer
 @defprim "dsp!" dsppoke
     pop dsp
     jmp .next
 
+// Transfer a value from the DS to the RS
 @defprim "d>r" dtor
     pop tr1
     dec rsp rsp
     str rsp tr1
     jmp .next
 
+// Transfer a value fromn the RS to the DS
 @defprim "r>d" rtod
     lod tr1 rsp
     inc rsp rsp
     psh tr1
     jmp .next
 
+// Read a value at a given address
 @defprim "@" peek
     pop tr1
     lod tr1 tr1
     psh tr1
     jmp .next
 
+// Store a given value to a given addres
+// Address is ontop of the value
 @defprim "!" poke
     pop tr1
     pop tr2
     str tr1 tr2
     jmp .next
 
+// Increment the contents of a given addres
 @defprim "+!" incpoke
     pop tr1
     lod tr2 tr1
@@ -300,6 +310,7 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     str tr1 tr2
     jmp .next
 
+// Decrement the contents of a given addres
 @defprim "-!" decpoke
     pop tr1
     lod tr2 tr1
@@ -307,10 +318,12 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     str tr1 tr2
     jmp .next
 
+// Discard the top value on the DS
 @defprim "drop" drop
     inc dsp dsp
     jmp .next
 
+// Swap the top two values on the DS
 @defprim "swap" swap
     pop tr1
     pop tr2
@@ -318,16 +331,19 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr2
     jmp .next
 
+// Duplicate the top value on the DS
 @defprim "dup" dup
     lod tr1 dsp
     psh tr1
     jmp .next
 
+// Duplicate the second-to-top value on the DS
 @defprim "over" over
     llod tr1 dsp 1
     psh tr1
     jmp .next
 
+// Move the third-to-top value to the top of the DS
 @defprim "rot" rot
     pop tr1
     pop tr2
@@ -337,18 +353,21 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr3
     jmp .next
 
+// Increment the top value on the DS
 @defprim "1+" inc
     lod tr1 dsp
     inc tr1 tr1
     str dsp tr1
     jmp .next
 
+// Decrement the top value on the DS
 @defprim "1-" dec
     lod tr1 dsp
     dec tr1 tr1
     str dsp tr1
     jmp .next
 
+// Add the top two values on the DS
 @defprim "+" add
     pop tr1
     pop tr2
@@ -356,6 +375,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Subtract the top two values on the DS
+// The top value is subtracted from the second-to-top
 @defprim "-" sub
     pop tr1
     pop tr2
@@ -363,6 +384,7 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Multiply the top two values on the DS
 @defprim "*" mult
     pop tr1
     pop tr2
@@ -370,6 +392,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Integer-divide the top two values on the DS
+// The second-to-top value is divided by the top value
 @defprim "/" div
     pop tr1
     pop tr2
@@ -377,6 +401,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Modulo (division remainder) the top two values on the DS
+// The second-to-top value is divided by the top value
 @defprim "%" mod
     pop tr1
     pop tr2
@@ -384,6 +410,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Check if the top two values on the DS are equal
+// True is -1 (all 1s), false is 0 (all 0s)
 @defprim "=" equals
     pop tr1
     pop tr2
@@ -391,6 +419,9 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Check if the second-to-top value is
+// unsigned-greater-than the top value on the DS
+// True is -1 (all 1s), false is 0 (all 0s)
 @defprim ">" greater
     pop tr1
     pop tr2
@@ -398,6 +429,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Bitwise AND the top two values on the DS
+// Also works as a boolean AND since true is -1
 @defprim "&" bitand
     pop tr1
     pop tr2
@@ -405,6 +438,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Bitwise OR the top two values on the DS
+// Also works as a boolean OR since true is -1
 @defprim "|" bitor
     pop tr1
     pop tr2
@@ -412,6 +447,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Bitwise XOR the top two values on the DS
+// Also works as = for two booleans
 @defprim "^" bitxor
     pop tr1
     pop tr2
@@ -419,18 +456,28 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Bit-negate the top value on the DS
+// Also works as a boolean NOT since true is -1
 @defprim "not" bitnot
     pop tr1
     not tr1 tr1
     psh tr1
     jmp .next
 
+// Skip over the next cell to be executed
+// and push its value to the DS
+// Used for embedding literal numbers
 @defprim "litn" litn
     lod tr1 vip
     inc vip vip
     psh tr1
     jmp .next
 
+// Skip over the next few cells to be executed
+// Push the first next cell's value to the DS,
+// skip that many more cells, and push the address
+// of the second next cell to the DS
+// Used for embedding literal strings
 @defprim "lits" lits
     lod tr1 vip
     inc tr2 vip
@@ -439,34 +486,45 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Use the first next cell's value as an offset
+// for a jump relative to the offset word
 @defprim "jmp" jmp
     lod tr1 vip
     add vip vip tr1
     jmp .next
 
+// Use the first next cell's value as an offset
+// for a jump relative to the offset word and only
+// do the jump if the top value on the DS was zero
 @defprim "brz" brz
     pop tr1
     brz .exec_jmp tr1
     inc vip vip
     jmp .next
 
+// Pop the top value on the RS and jump to it
+// This is effectively a return for procedures
 @defprim "exit" exit
     lod vip rsp
     inc rsp rsp
     jmp .next
 
+// Switch to interpret state
 @defprimi "[" interpret
     llod tr1 .code_state 1
     imm tr1 0
     lstr .code_state 1 tr1
     jmp .next
 
+// Switch to compile state
 @defprim "]" compile
     llod tr1 .code_state 1
     imm tr1 1
     lstr .code_state 1 tr1
     jmp .next
 
+// Given a dictionary entry address,
+// toggle the hidden flag of the entry
 @defprim "hide" hide
     pop tr1
     llod tr2 tr1 1
@@ -474,6 +532,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     lstr tr1 1 tr2
     jmp .next
 
+// Toggle the run-immediate flag of the
+// last-defined dictionary entry
 @defprimi "runimm" runimm
     llod tr1 .code_last 1
     llod tr2 tr1 1
@@ -481,17 +541,24 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     lstr tr1 1 tr2
     jmp .next
 
+// Create and link a new dictionary entry
+// given a string on the stack as a name
+// String = Length + Address, length on top
 @defprim "create" create
     pop tr1
     pop tr2
     cal .create
     jmp .next
 
+// Pop the top value on the DS and append
+// it to the last-defined dictionary entry
 @defprim "," append
     pop tr1
     cal .append
     jmp .next
 
+// Given a dictionary entry address,
+// convert it to an address to its CF
 @defprim ">cfa" tocfa
     pop tr1
     llod tr2 tr1 1
@@ -501,38 +568,50 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Execute a word, given its CFA
 @defprim "exec" exec
     pop cfa
     lod tr1 cfa
     jmp tr1
 
+// Get a character from the console into the DS
 @defprim "inp" inp
     cal .inp
     psh tr2
     jmp .next
 
+// Print out the top value on the DS as a character
 @defprim "out" out
     pop tr1
     out %text tr1
     jmp .next
 
+// Print out the top value on the DS as a decimal number
 @defprim "." dot
     pop tr1
     out %numb tr1
     jmp .next
 
+// Take over reading the next word from the
+// console and push its string to the DS
+// String = Length + Address, length on top
 @defprim "word" word
     cal .word
     psh tr2
     psh tr1
     jmp .next
 
+// Print a string taken from the DS
+// String = Length + Address, length on top
 @defprim "tell" tell
     pop tr1
     pop tr2
     cal .tell
     jmp .next
 
+// Take over reading the next number from the
+// console and push its value and the count
+// of excess unparsed character to the DS
 @defprim "number" number
     pop tr1
     pop tr2
@@ -541,6 +620,8 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Find the dictionary entry given a string from the DS
+// String = Length + Address, length on top
 @defprim "find" find
     pop tr1
     pop tr2
@@ -548,6 +629,9 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Handle compiling or interpreting a given word string
+// from the DS or, if not in the dictionary, try to parse
+// as a number and push it to the DS, or print error
 @defprim "repl" repl
     llod tr1 dsp 0
     llod tr2 dsp 1
@@ -593,23 +677,33 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 /////////////////////////// FORTH //////////////////////////
 
+// Our entrypoint word but it can also be called
+// from within other words to reset the system
 @defforth "abort" abort
 dw [ .code_trs .code_rsppoke ] // Clear RS
 dw [ .code_word .code_repl ]   // Handle token
 dw [ .code_jmp -5 ]            // Repeat
 
+// The word to make all other words, everything between
+// it and semicol constitute a new word definiton that
+// is compiled and placed on the dictionary
 @defforth ":" colon
 dw [ .code_word .code_create ]          // New named entry
 dw [ .code_iproc .code_append ]         // Procedure word
 dw [ .code_last .code_peek .code_hide ] // Hide it for now
 dw [ .code_compile .code_exit ]         // Change state
 
+// Twin of colon, resposible for terminating a definition
 @defforthi ";" semicol
 dw [ .code_litn .code_exit .code_append ] // Finalize word
 dw [ .code_last .code_peek .code_hide ]   // Unhide it
 dw [ .code_interpret .code_exit ]         // Change state
 
 .dict_last
+// This word allows for the creation of closures
+// It hijacks the caller word to stop execution and then
+// patches the newest word on the dictionary to become a
+// patch word with itscode as those after itself
 @defforth "patch" patch
 dw [ .code_rtod ] // Start of patch; don't return to it
 dw [ .code_last .code_peek .code_tocfa ]  // CFA of last

@@ -240,57 +240,22 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 /////////////////// CONSTANTS + VARIABLES //////////////////
 
+@defvar "state" state 0          // 0=Interpret, 1=Compile
+@defvar "free"  free  M0         // First free cell
+@defvar "last"  last  .dict_last // Last-defined word entry
 
-.head_state
-dw [ 0 0x04 "state" ]
-.code_state
-dw [ .run_var 0 ]
-
-.head_free
-dw [ .head_state 0x03 "free" ]
-.code_free
-dw [ .run_var M0 ]
-
-.head_last
-dw [ .head_free 0x03 "last" ]
-.code_last
-dw [ .run_var .dict_last ]
-
-
-.head_tds
-dw [ .head_last 0x02 "tds" ]
-.code_tds
-dw [ .run_const 0 ]
-
-.head_trs
-dw [ .head_tds 0x02 "trs" ]
-.code_trs
-dw [ .run_const 0 ]
-
-.head_iproc
-dw [ .head_trs 0x04 "iproc" ]
-.code_iproc
-dw [ .run_const .run_proc ]
-
-.head_ipatch
-dw [ .head_iproc 0x05 "ipatch" ]
-.code_ipatch
-dw [ .run_const .run_patch ]
-
-.head_ivar
-dw [ .head_ipatch 0x03 "ivar" ]
-.code_ivar
-dw [ .run_const .run_var ]
-
-.head_iconst
-dw [ .head_ivar 0x05 "iconst" ]
-.code_iconst
-dw [ .run_const .run_const ]
+@defconst "tds" tds 0 // Top of Data Stack
+@defconst "trs" trs 0 // Top of Return Stack
+@defconst "iproc"  iproc  .run_proc  // CFA for Procedures
+@defconst "ipatch" ipatch .run_patch // CFA for Patch Words
+@defconst "ivar"   ivar   .run_var   // CFA for Variables
+@defconst "iconst" iconst .run_const // CFA for Constants
 
 //////////////////////// PRIMITIVES ////////////////////////
 
+// Get the value of the Return Stack Pointer on the DS
 .head_rsppeek
-dw [ .head_iconst 0x03 "rsp@" ]
+dw [ 0 0x03 "rsp@" ]
 .code_rsppeek
 dw [ .exec_rsppeek ]
 nop
@@ -298,6 +263,7 @@ nop
     psh rsp
     jmp .next
 
+// Store the value on the DS to the Return Stack Pointer
 .head_rsppoke
 dw [ .head_rsppeek 0x03 "rsp!" ]
 .code_rsppoke
@@ -307,6 +273,7 @@ nop
     pop rsp
     jmp .next
 
+// Get the value of the Data Stack Pointer on the DS
 .head_dsppeek
 dw [ .head_rsppoke 0x03 "dsp@" ]
 .code_dsppeek
@@ -316,6 +283,7 @@ nop
     psh dsp
     jmp .next
 
+// Store the value on the DS to the Data Stack Pointer
 .head_dsppoke
 dw [ .head_dsppeek 0x03 "dsp!" ]
 .code_dsppoke
@@ -325,6 +293,7 @@ nop
     pop dsp
     jmp .next
 
+// Transfer a value from the DS to the RS
 .head_dtor
 dw [ .head_dsppoke 0x02 "d>r" ]
 .code_dtor
@@ -336,6 +305,7 @@ nop
     str rsp tr1
     jmp .next
 
+// Transfer a value fromn the RS to the DS
 .head_rtod
 dw [ .head_dtor 0x02 "r>d" ]
 .code_rtod
@@ -347,6 +317,7 @@ nop
     psh tr1
     jmp .next
 
+// Read a value at a given address
 .head_peek
 dw [ .head_rtod 0x00 "@" ]
 .code_peek
@@ -358,6 +329,8 @@ nop
     psh tr1
     jmp .next
 
+// Store a given value to a given addres
+// Address is ontop of the value
 .head_poke
 dw [ .head_peek 0x00 "!" ]
 .code_poke
@@ -369,6 +342,7 @@ nop
     str tr1 tr2
     jmp .next
 
+// Increment the contents of a given addres
 .head_incpoke
 dw [ .head_poke 0x01 "+!" ]
 .code_incpoke
@@ -381,6 +355,7 @@ nop
     str tr1 tr2
     jmp .next
 
+// Decrement the contents of a given addres
 .head_decpoke
 dw [ .head_incpoke 0x01 "-!" ]
 .code_decpoke
@@ -393,6 +368,7 @@ nop
     str tr1 tr2
     jmp .next
 
+// Discard the top value on the DS
 .head_drop
 dw [ .head_decpoke 0x03 "drop" ]
 .code_drop
@@ -402,6 +378,7 @@ nop
     inc dsp dsp
     jmp .next
 
+// Swap the top two values on the DS
 .head_swap
 dw [ .head_drop 0x03 "swap" ]
 .code_swap
@@ -414,6 +391,7 @@ nop
     psh tr2
     jmp .next
 
+// Duplicate the top value on the DS
 .head_dup
 dw [ .head_swap 0x02 "dup" ]
 .code_dup
@@ -424,6 +402,7 @@ nop
     psh tr1
     jmp .next
 
+// Duplicate the second-to-top value on the DS
 .head_over
 dw [ .head_dup 0x03 "over" ]
 .code_over
@@ -434,6 +413,7 @@ nop
     psh tr1
     jmp .next
 
+// Move the third-to-top value to the top of the DS
 .head_rot
 dw [ .head_over 0x02 "rot" ]
 .code_rot
@@ -448,6 +428,7 @@ nop
     psh tr3
     jmp .next
 
+// Increment the top value on the DS
 .head_inc
 dw [ .head_rot 0x01 "1+" ]
 .code_inc
@@ -459,6 +440,7 @@ nop
     str dsp tr1
     jmp .next
 
+// Decrement the top value on the DS
 .head_dec
 dw [ .head_inc 0x01 "1-" ]
 .code_dec
@@ -470,6 +452,7 @@ nop
     str dsp tr1
     jmp .next
 
+// Add the top two values on the DS
 .head_add
 dw [ .head_dec 0x00 "+" ]
 .code_add
@@ -482,6 +465,8 @@ nop
     psh tr1
     jmp .next
 
+// Subtract the top two values on the DS
+// The top value is subtracted from the second-to-top
 .head_sub
 dw [ .head_add 0x00 "-" ]
 .code_sub
@@ -494,6 +479,7 @@ nop
     psh tr1
     jmp .next
 
+// Multiply the top two values on the DS
 .head_mult
 dw [ .head_sub 0x00 "*" ]
 .code_mult
@@ -506,6 +492,8 @@ nop
     psh tr1
     jmp .next
 
+// Integer-divide the top two values on the DS
+// The second-to-top value is divided by the top value
 .head_div
 dw [ .head_mult 0x00 "/" ]
 .code_div
@@ -518,6 +506,8 @@ nop
     psh tr1
     jmp .next
 
+// Modulo (division remainder) the top two values on the DS
+// The second-to-top value is divided by the top value
 .head_mod
 dw [ .head_div 0x00 "%" ]
 .code_mod
@@ -530,6 +520,8 @@ nop
     psh tr1
     jmp .next
 
+// Check if the top two values on the DS are equal
+// True is -1 (all 1s), false is 0 (all 0s)
 .head_equals
 dw [ .head_mod 0x00 "=" ]
 .code_equals
@@ -542,6 +534,9 @@ nop
     psh tr1
     jmp .next
 
+// Check if the second-to-top value is
+// unsigned-greater-than the top value on the DS
+// True is -1 (all 1s), false is 0 (all 0s)
 .head_greater
 dw [ .head_equals 0x00 ">" ]
 .code_greater
@@ -554,6 +549,8 @@ nop
     psh tr1
     jmp .next
 
+// Bitwise AND the top two values on the DS
+// Also works as a boolean AND since true is -1
 .head_bitand
 dw [ .head_greater 0x00 "&" ]
 .code_bitand
@@ -566,6 +563,8 @@ nop
     psh tr1
     jmp .next
 
+// Bitwise OR the top two values on the DS
+// Also works as a boolean OR since true is -1
 .head_bitor
 dw [ .head_bitand 0x00 "|" ]
 .code_bitor
@@ -578,6 +577,8 @@ nop
     psh tr1
     jmp .next
 
+// Bitwise XOR the top two values on the DS
+// Also works as = for two booleans
 .head_bitxor
 dw [ .head_bitor 0x00 "^" ]
 .code_bitxor
@@ -590,6 +591,8 @@ nop
     psh tr1
     jmp .next
 
+// Bit-negate the top value on the DS
+// Also works as a boolean NOT since true is -1
 .head_bitnot
 dw [ .head_bitxor 0x02 "not" ]
 .code_bitnot
@@ -601,6 +604,9 @@ nop
     psh tr1
     jmp .next
 
+// Skip over the next cell to be executed
+// and push its value to the DS
+// Used for embedding literal numbers
 .head_litn
 dw [ .head_bitnot 0x03 "litn" ]
 .code_litn
@@ -612,6 +618,11 @@ nop
     psh tr1
     jmp .next
 
+// Skip over the next few cells to be executed
+// Push the first next cell's value to the DS,
+// skip that many more cells, and push the address
+// of the second next cell to the DS
+// Used for embedding literal strings
 .head_lits
 dw [ .head_litn 0x03 "lits" ]
 .code_lits
@@ -625,6 +636,8 @@ nop
     psh tr1
     jmp .next
 
+// Use the first next cell's value as an offset
+// for a jump relative to the offset word
 .head_jmp
 dw [ .head_lits 0x02 "jmp" ]
 .code_jmp
@@ -635,6 +648,9 @@ nop
     add vip vip tr1
     jmp .next
 
+// Use the first next cell's value as an offset
+// for a jump relative to the offset word and only
+// do the jump if the top value on the DS was zero
 .head_brz
 dw [ .head_jmp 0x02 "brz" ]
 .code_brz
@@ -646,6 +662,8 @@ nop
     inc vip vip
     jmp .next
 
+// Pop the top value on the RS and jump to it
+// This is effectively a return for procedures
 .head_exit
 dw [ .head_brz 0x03 "exit" ]
 .code_exit
@@ -656,6 +674,7 @@ nop
     inc rsp rsp
     jmp .next
 
+// Switch to interpret state
 .head_interpret
 dw [ .head_exit 0x80 "[" ]
 .code_interpret
@@ -667,6 +686,7 @@ nop
     lstr .code_state 1 tr1
     jmp .next
 
+// Switch to compile state
 .head_compile
 dw [ .head_interpret 0x00 "]" ]
 .code_compile
@@ -678,6 +698,8 @@ nop
     lstr .code_state 1 tr1
     jmp .next
 
+// Given a dictionary entry address,
+// toggle the hidden flag of the entry
 .head_hide
 dw [ .head_compile 0x03 "hide" ]
 .code_hide
@@ -690,6 +712,8 @@ nop
     lstr tr1 1 tr2
     jmp .next
 
+// Toggle the run-immediate flag of the
+// last-defined dictionary entry
 .head_runimm
 dw [ .head_hide 0x85 "runimm" ]
 .code_runimm
@@ -702,6 +726,9 @@ nop
     lstr tr1 1 tr2
     jmp .next
 
+// Create and link a new dictionary entry
+// given a string on the stack as a name
+// String = Length + Address, length on top
 .head_create
 dw [ .head_runimm 0x05 "create" ]
 .code_create
@@ -713,6 +740,8 @@ nop
     cal .create
     jmp .next
 
+// Pop the top value on the DS and append
+// it to the last-defined dictionary entry
 .head_append
 dw [ .head_create 0x00 "," ]
 .code_append
@@ -723,6 +752,8 @@ nop
     cal .append
     jmp .next
 
+// Given a dictionary entry address,
+// convert it to an address to its CF
 .head_tocfa
 dw [ .head_append 0x03 ">cfa" ]
 .code_tocfa
@@ -737,6 +768,7 @@ nop
     psh tr1
     jmp .next
 
+// Execute a word, given its CFA
 .head_exec
 dw [ .head_tocfa 0x03 "exec" ]
 .code_exec
@@ -747,6 +779,7 @@ nop
     lod tr1 cfa
     jmp tr1
 
+// Get a character from the console into the DS
 .head_inp
 dw [ .head_exec 0x02 "inp" ]
 .code_inp
@@ -757,6 +790,7 @@ nop
     psh tr2
     jmp .next
 
+// Print out the top value on the DS as a character
 .head_out
 dw [ .head_inp 0x02 "out" ]
 .code_out
@@ -767,6 +801,7 @@ nop
     out %text tr1
     jmp .next
 
+// Print out the top value on the DS as a decimal number
 .head_dot
 dw [ .head_out 0x00 "." ]
 .code_dot
@@ -777,6 +812,9 @@ nop
     out %numb tr1
     jmp .next
 
+// Take over reading the next word from the
+// console and push its string to the DS
+// String = Length + Address, length on top
 .head_word
 dw [ .head_dot 0x03 "word" ]
 .code_word
@@ -788,6 +826,8 @@ nop
     psh tr1
     jmp .next
 
+// Print a string taken from the DS
+// String = Length + Address, length on top
 .head_tell
 dw [ .head_word 0x03 "tell" ]
 .code_tell
@@ -799,6 +839,9 @@ nop
     cal .tell
     jmp .next
 
+// Take over reading the next number from the
+// console and push its value and the count
+// of excess unparsed character to the DS
 .head_number
 dw [ .head_tell 0x05 "number" ]
 .code_number
@@ -812,6 +855,8 @@ nop
     psh tr1
     jmp .next
 
+// Find the dictionary entry given a string from the DS
+// String = Length + Address, length on top
 .head_find
 dw [ .head_number 0x03 "find" ]
 .code_find
@@ -824,6 +869,9 @@ nop
     psh tr1
     jmp .next
 
+// Handle compiling or interpreting a given word string
+// from the DS or, if not in the dictionary, try to parse
+// as a number and push it to the DS, or print error
 .head_repl
 dw [ .head_find 0x03 "repl" ]
 .code_repl
@@ -874,6 +922,8 @@ nop
 
 /////////////////////////// FORTH //////////////////////////
 
+// Our entrypoint word but it can also be called
+// from within other words to reset the system
 .head_abort
 dw [ .head_repl 0x04 "abort" ]
 .code_abort
@@ -882,6 +932,9 @@ dw [ .code_trs .code_rsppoke ] // Clear RS
 dw [ .code_word .code_repl ]   // Handle token
 dw [ .code_jmp -5 ]            // Repeat
 
+// The word to make all other words, everything between
+// it and semicol constitute a new word definiton that
+// is compiled and placed on the dictionary
 .head_colon
 dw [ .head_abort 0x00 ":" ]
 .code_colon
@@ -891,6 +944,7 @@ dw [ .code_iproc .code_append ]         // Procedure word
 dw [ .code_last .code_peek .code_hide ] // Hide it for now
 dw [ .code_compile .code_exit ]         // Change state
 
+// Twin of colon, resposible for terminating a definition
 .head_semicol
 dw [ .head_colon 0x80 ";" ]
 .code_semicol
@@ -900,6 +954,10 @@ dw [ .code_last .code_peek .code_hide ]   // Unhide it
 dw [ .code_interpret .code_exit ]         // Change state
 
 .dict_last
+// This word allows for the creation of closures
+// It hijacks the caller word to stop execution and then
+// patches the newest word on the dictionary to become a
+// patch word with itscode as those after itself
 .head_patch
 dw [ .head_semicol 0x04 "patch" ]
 .code_patch
