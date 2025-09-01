@@ -240,22 +240,67 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 /////////////////// CONSTANTS + VARIABLES //////////////////
 
-@defvar "state" state 0          // 0=Interpret, 1=Compile
-@defvar "free"  free  M0         // First free cell
-@defvar "last"  last  .dict_last // Last-defined word entry
+// 0=Interpret, 1=Compile
+.head_state
+dw [ 0 0x04 "state" ]
+.code_state
+dw [ .run_var 0 ]
 
-@defconst "tds" tds 0 // Top of Data Stack
-@defconst "trs" trs 0 // Top of Return Stack
-@defconst "iproc"  iproc  .run_proc  // CFA for Procedures
-@defconst "ipatch" ipatch .run_patch // CFA for Patch Words
-@defconst "ivar"   ivar   .run_var   // CFA for Variables
-@defconst "iconst" iconst .run_const // CFA for Constants
+// First free cell
+.head_free
+dw [ .head_state 0x03 "free" ]
+.code_free
+dw [ .run_var M0 ]
+
+// Last-defined word entry
+.head_last
+dw [ .head_free 0x03 "last" ]
+.code_last
+dw [ .run_var .dict_last ]
+
+
+// Top of Data Stack
+.head_tds
+dw [ .head_last 0x02 "tds" ]
+.code_tds
+dw [ .run_const 0 ]
+
+// Top of Return Stack
+.head_trs
+dw [ .head_tds 0x02 "trs" ]
+.code_trs
+dw [ .run_const 0 ]
+
+// CFA for Procedures
+.head_iproc
+dw [ .head_trs 0x04 "iproc" ]
+.code_iproc
+dw [ .run_const .run_proc ]
+
+// CFA for Patch Words
+.head_ipatch
+dw [ .head_iproc 0x05 "ipatch" ]
+.code_ipatch
+dw [ .run_const .run_patch ]
+
+// CFA for Variables
+.head_ivar
+dw [ .head_ipatch 0x03 "ivar" ]
+.code_ivar
+dw [ .run_const .run_var ]
+
+// CFA for Constants
+.head_iconst
+dw [ .head_ivar 0x05 "iconst" ]
+.code_iconst
+dw [ .run_const .run_const ]
+
 
 //////////////////////// PRIMITIVES ////////////////////////
 
 // Get the value of the Return Stack Pointer on the DS
 .head_rsppeek
-dw [ 0 0x03 "rsp@" ]
+dw [ .head_iconst 0x03 "rsp@" ]
 .code_rsppeek
 dw [ .exec_rsppeek ]
 nop
@@ -924,6 +969,7 @@ nop
 
 // Our entrypoint word but it can also be called
 // from within other words to reset the system
+
 .head_abort
 dw [ .head_repl 0x04 "abort" ]
 .code_abort
@@ -935,6 +981,7 @@ dw [ .code_jmp -5 ]            // Repeat
 // The word to make all other words, everything between
 // it and semicol constitute a new word definiton that
 // is compiled and placed on the dictionary
+
 .head_colon
 dw [ .head_abort 0x00 ":" ]
 .code_colon
@@ -945,6 +992,7 @@ dw [ .code_last .code_peek .code_hide ] // Hide it for now
 dw [ .code_compile .code_exit ]         // Change state
 
 // Twin of colon, resposible for terminating a definition
+
 .head_semicol
 dw [ .head_colon 0x80 ";" ]
 .code_semicol
@@ -958,6 +1006,7 @@ dw [ .code_interpret .code_exit ]         // Change state
 // It hijacks the caller word to stop execution and then
 // patches the newest word on the dictionary to become a
 // patch word with itscode as those after itself
+
 .head_patch
 dw [ .head_semicol 0x04 "patch" ]
 .code_patch

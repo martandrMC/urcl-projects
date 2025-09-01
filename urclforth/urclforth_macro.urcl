@@ -240,16 +240,25 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 /////////////////// CONSTANTS + VARIABLES //////////////////
 
-@defvar "state" state 0          // 0=Interpret, 1=Compile
-@defvar "free"  free  M0         // First free cell
-@defvar "last"  last  .dict_last // Last-defined word entry
+// 0=Interpret, 1=Compile
+@defvar "state" state 0
+// First free cell
+@defvar "free"  free  M0
+// Last-defined word entry
+@defvar "last"  last  .dict_last
 
-@defconst "tds" tds 0 // Top of Data Stack
-@defconst "trs" trs 0 // Top of Return Stack
-@defconst "iproc"  iproc  .run_proc  // CFA for Procedures
-@defconst "ipatch" ipatch .run_patch // CFA for Patch Words
-@defconst "ivar"   ivar   .run_var   // CFA for Variables
-@defconst "iconst" iconst .run_const // CFA for Constants
+// Top of Data Stack
+@defconst "tds" tds 0
+// Top of Return Stack
+@defconst "trs" trs 0
+// CFA for Procedures
+@defconst "iproc"  iproc  .run_proc
+// CFA for Patch Words
+@defconst "ipatch" ipatch .run_patch
+// CFA for Variables
+@defconst "ivar"   ivar   .run_var
+// CFA for Constants
+@defconst "iconst" iconst .run_const
 
 //////////////////////// PRIMITIVES ////////////////////////
 
