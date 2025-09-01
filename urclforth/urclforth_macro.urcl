@@ -684,6 +684,10 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     out %text 'R'
     jmp .next
 
+@defprim "break" break
+    @debug
+    jmp .next
+
 /////////////////////////// FORTH //////////////////////////
 
 // Our entrypoint word but it can also be called

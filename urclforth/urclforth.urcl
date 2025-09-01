@@ -965,13 +965,22 @@ nop
     out %text 'R'
     jmp .next
 
+.head_break
+dw [ .head_repl 0x04 "break" ]
+.code_break
+dw [ .exec_break ]
+nop
+.exec_break
+    @debug
+    jmp .next
+
 /////////////////////////// FORTH //////////////////////////
 
 // Our entrypoint word but it can also be called
 // from within other words to reset the system
 
 .head_abort
-dw [ .head_repl 0x04 "abort" ]
+dw [ .head_break 0x04 "abort" ]
 .code_abort
 dw [ .run_proc ]
 dw [ .code_trs .code_rsppoke ] // Clear RS
