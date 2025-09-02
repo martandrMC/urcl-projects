@@ -2,7 +2,7 @@ run rom
 bits 16
 
 // Total RAM = 1024 Cells (2 KiB)
-minheap 557
+minheap 509
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -21,6 +21,9 @@ minreg 7
 @define FLAG_HIDDEN 0x40 // Ingored by dictionary lookups
 @define MASK_LENGTH 0x0f // Only up to 16 chars for the name
 
+@define RS_SIZE  8 // Size of the return stack
+@define DS_SIZE 24 // Size of the data stack
+
 ////////////////////////////////////////////////////////////
 //                    URCL ENTRYPOINT                     //
 ////////////////////////////////////////////////////////////
@@ -28,7 +31,7 @@ minreg 7
 // The last 8 cells are for the RSP
 // Memset them to AAAA so they are visible
 mov rsp sp
-imm tr1 8
+imm tr1 RS_SIZE
 .fill_rs
     psh 0xAAAA
     dec tr1 tr1
@@ -36,15 +39,17 @@ bnz .fill_rs tr1
 
 // The following 24 cells are for the DSP
 // Memset them to BBBB so they are visible
-imm tr1 -24
+sub tr1 r0 DS_SIZE
 .fill_ds
     lstr dsp tr1 0xBBBB
     inc tr1 tr1
 bnz .fill_ds tr1
 
-// Initialise TDS, TRS constants
+// Initialise TDS, TRS, EDR constants
 lstr .code_tds 1 dsp
 lstr .code_trs 1 rsp
+sub tr1 dsp DS_SIZE
+lstr .code_edr 1 tr1
 
 // Inline version of .next to call the abort word
 // Don't want to place down a DW just for this
@@ -203,7 +208,7 @@ jmp tr1
     ret
 
 .create
-    llod tr3 .code_free 1
+    llod tr3 .code_here 1
     llod tr4 .code_last 1
     lstr .code_last 1 tr3
     lstr tr3 0 tr4
@@ -212,7 +217,7 @@ jmp tr1
     lstr tr3 1 tr4
     add tr3 tr3 2
     add tr4 tr3 tr1
-    lstr .code_free 1 tr4
+    lstr .code_here 1 tr4
     .create_copy
         dec tr1 tr1
         llod tr4 tr2 tr1
@@ -222,10 +227,10 @@ jmp tr1
     ret
 
 .append
-    llod tr2 .code_free 1
+    llod tr2 .code_here 1
     str tr2 tr1
     inc tr2 tr2
-    lstr .code_free 1 tr2
+    lstr .code_here 1 tr2
     ret
 
 ////////////////////////////////////////////////////////////
@@ -242,23 +247,33 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
 
 // 0=Interpret, 1=Compile
 @defvar "state" state 0
-// First free cell
-@defvar "free"  free  M0
-// Last-defined word entry
+// First free cell on the dictionary region
+@defvar "here"  here  M0
+// Last-defined dictionary entry
 @defvar "last"  last  .dict_last
 
 // Top of Data Stack
 @defconst "tds" tds 0
 // Top of Return Stack
 @defconst "trs" trs 0
-// CFA for Procedures
+// End of Dictionary Region
+@defconst "edr" edr 0
+
+// CFA for procedures
 @defconst "iproc"  iproc  .run_proc
-// CFA for Patch Words
+// CFA for patch words
 @defconst "ipatch" ipatch .run_patch
-// CFA for Variables
+// CFA for variables
 @defconst "ivar"   ivar   .run_var
-// CFA for Constants
+// CFA for constants
 @defconst "iconst" iconst .run_const
+
+// Bit for the run-immediate flag
+@defconst "frunimm" frunimm FLAG_RUNIMM
+// Bit for the hidden flag
+@defconst "fhidden" fhidden FLAG_HIDDEN
+// Length bitmask for dictionary entries
+@defconst "nlength" nlength MASK_LENGTH
 
 //////////////////////// PRIMITIVES ////////////////////////
 
