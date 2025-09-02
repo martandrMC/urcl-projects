@@ -20,14 +20,14 @@
 	[ ' if , ]
 ;
 
+: end runimm
+	here @ over - swap !
+;
+
 : else runimm
 	litn jmp ,
 	here @ 0 ,
 	swap [ ' end , ]
-;
-
-: end runimm
-	here @ over - swap !
 ;
 
 : begin runimm here @ ;
