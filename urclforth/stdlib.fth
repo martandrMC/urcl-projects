@@ -25,10 +25,30 @@
 	word drop @
 ;
 
+: bump ( n -- )
+	here @ + here !
+;
+
+: const ( n w -- )
+	word create iconst , ,
+;
+
+: var ( w -- )
+	word create ivar , 0 ,
+;
+
+: array ( n w -- )
+	word create ivar , bump
+;
+
 : >name ( d -- s )
 	1+ dup
 	1+ swap
 	@ mlength & 1+
+;
+
+: >str ( a -- s )
+	dup @ swap 1+ swap
 ;
 
 : if ( -- a )
@@ -89,6 +109,12 @@
 	unl out loop drop end
 ; runimm
 
+: ," ( w* -- )
+	[ ' " , ] dup
+	last @ >cfa exec
+	! bump drop
+; runimm
+
 : ?words ( -- )
 	last @ begin
 		dup >name tell
@@ -97,7 +123,7 @@
 ;
 
 : ?stack ( -- )
-	dsp@ begin tds over >
+	dsp@ begin tds over u>
 	if dup @ . 32 out 1+
 	loop drop
 ;
@@ -105,3 +131,20 @@
 : ?free ( -- n )
 	edr here @ -
 ;
+
+( Welcome message )
+?free mark done
+var msg1 ," Type `?words` for a list of words you can call"
+var msg2 ," Type `?stack` to read the contents of the stack"
+var msg4 ," Postfix notation! Try this out: `1 2 + 3 * .`"
+var msg3 ," Define words using `: name contents ;`"
+4 array msgs msgs
+msg1 over ! 1+
+msg2 over ! 1+
+msg3 over ! 1+
+msg4 over ! 1+
+drop
+
+." URCL Forth v3.6 (" . ."  free / " edr . ."  total)" 10 out
+msgs rng 4 % + @ >str tell 10 out
+done

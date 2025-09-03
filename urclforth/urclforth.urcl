@@ -1,8 +1,8 @@
 run rom
 bits 16
 
-// Total RAM = 1024 Cells (2 KiB)
-minheap 505
+// Total RAM = 2048 Cells (4 KiB)
+minheap 1517
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -613,22 +613,37 @@ nop
 // Check if the second-to-top value is
 // unsigned-greater-than the top value on the DS
 // True is -1 (all 1s), false is 0 (all 0s)
-.head_greater
-dw [ .head_equals 0x00 ">" ]
-.code_greater
-dw [ .exec_greater ]
+.head_ugreater
+dw [ .head_equals 0x01 "u>" ]
+.code_ugreater
+dw [ .exec_ugreater ]
 nop
-.exec_greater
+.exec_ugreater
     pop tr1
     pop tr2
     setg tr1 tr2 tr1
     psh tr1
     jmp .next
 
+// Check if the second-to-top value is
+// signed-greater-than the top value on the DS
+// True is -1 (all 1s), false is 0 (all 0s)
+.head_sgreater
+dw [ .head_ugreater 0x01 "s>" ]
+.code_sgreater
+dw [ .exec_sgreater ]
+nop
+.exec_sgreater
+    pop tr1
+    pop tr2
+    ssetg tr1 tr2 tr1
+    psh tr1
+    jmp .next
+
 // Bitwise AND the top two values on the DS
 // Also works as a boolean AND since true is -1
 .head_bitand
-dw [ .head_greater 0x00 "&" ]
+dw [ .head_sgreater 0x00 "&" ]
 .code_bitand
 dw [ .exec_bitand ]
 nop
@@ -680,11 +695,22 @@ nop
     psh tr1
     jmp .next
 
+// Put a random number into the DS
+.head_rng
+dw [ .head_bitnot 0x02 "rng" ]
+.code_rng
+dw [ .exec_rng ]
+nop
+.exec_rng
+    in tr1 %rng
+    psh tr1
+    jmp .next
+
 // Skip over the next cell to be executed
 // and push its value to the DS
 // Used for embedding literal numbers
 .head_litn
-dw [ .head_bitnot 0x03 "litn" ]
+dw [ .head_rng 0x03 "litn" ]
 .code_litn
 dw [ .exec_litn ]
 nop
