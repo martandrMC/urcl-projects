@@ -19,8 +19,7 @@ dw [ .exec_{label} ]
 nop
 .exec_{label}
 """,
-"""
-.head_{label}
+""".head_{label}
 dw [ {last} 0x{length:02X} {name} ]
 .code_{label}
 dw [ .run_proc ]

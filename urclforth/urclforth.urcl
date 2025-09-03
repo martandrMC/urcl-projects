@@ -2,7 +2,7 @@ run rom
 bits 16
 
 // Total RAM = 1024 Cells (2 KiB)
-minheap 509
+minheap 505
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -321,9 +321,9 @@ dw [ .head_frunimm 0x06 "fhidden" ]
 dw [ .run_const FLAG_HIDDEN ]
 
 // Length bitmask for dictionary entries
-.head_nlength
-dw [ .head_fhidden 0x06 "nlength" ]
-.code_nlength
+.head_mlength
+dw [ .head_fhidden 0x06 "mlength" ]
+.code_mlength
 dw [ .run_const MASK_LENGTH ]
 
 
@@ -331,7 +331,7 @@ dw [ .run_const MASK_LENGTH ]
 
 // Get the value of the Return Stack Pointer on the DS
 .head_rsppeek
-dw [ .head_nlength 0x03 "rsp@" ]
+dw [ .head_mlength 0x03 "rsp@" ]
 .code_rsppeek
 dw [ .exec_rsppeek ]
 nop
@@ -957,47 +957,68 @@ nop
     llod tr1 dsp 0
     llod tr2 dsp 1
     cal .find
-    brz .exec_repl_nodict tr1
+    brz .repl_nodict tr1
         add dsp dsp 2
         llod tr2 tr1 1
         and tr4 tr2 FLAG_RUNIMM
         and tr2 tr2 MASK_LENGTH
         add tr2 tr2 3
         add cfa tr1 tr2
-        bnz .exec_repl_dict_interp tr4
+        bnz .repl_dict_interp tr4
         llod tr4 .code_state 1
-        brz .exec_repl_dict_interp tr4
+        brz .repl_dict_interp tr4
         mov tr1 cfa
         cal .append
         jmp .next
-        .exec_repl_dict_interp
+        .repl_dict_interp
         lod tr1 cfa
         jmp tr1
-    .exec_repl_nodict
+    .repl_nodict
     pop tr1
     pop tr2
     cal .number
-    bnz .exec_repl_error tr1
+    bnz .repl_error tr1
         llod tr4 .code_state 1
-        brz .exec_repl_num_interp tr4
+        brz .repl_num_interp tr4
         imm tr1 .code_litn
         psh tr2
         cal .append
         pop tr1
         cal .append
         jmp .next
-        .exec_repl_num_interp
+        .repl_num_interp
         psh tr2
         jmp .next
-    .exec_repl_error
+    .repl_error
     out %text '?'
     out %text 'E'
     out %text 'R'
     out %text 'R'
     jmp .next
 
+// After "( " read and discard characters until
+// finding the matching ")", while coutning nesting
+// Forth's standard block comment; nesting-aware
+.head_blk_cmnt
+dw [ .head_repl 0x80 "(" ]
+.code_blk_cmnt
+dw [ .exec_blk_cmnt ]
+nop
+.exec_blk_cmnt
+    imm tr1 1
+    .blk_cmnt_loop
+        cal .inp
+        bne ~+2 tr2 '('
+        inc tr1 tr1
+        bne ~+2 tr2 ')'
+        dec tr1 tr1
+    bnz .blk_cmnt_loop tr1
+    jmp .next
+
+// Breakpoint so that I don't get arthritis on my
+// index finger from single-stepping all the time
 .head_break
-dw [ .head_repl 0x04 "break" ]
+dw [ .head_blk_cmnt 0x04 "break" ]
 .code_break
 dw [ .exec_break ]
 nop
@@ -1009,7 +1030,6 @@ nop
 
 // Our entrypoint word but it can also be called
 // from within other words to reset the system
-
 .head_abort
 dw [ .head_break 0x04 "abort" ]
 .code_abort
@@ -1021,7 +1041,6 @@ dw [ .code_jmp -5 ]            // Repeat
 // The word to make all other words, everything between
 // it and semicol constitute a new word definiton that
 // is compiled and placed on the dictionary
-
 .head_colon
 dw [ .head_abort 0x00 ":" ]
 .code_colon
@@ -1032,7 +1051,6 @@ dw [ .code_last .code_peek .code_hide ] // Hide it for now
 dw [ .code_compile .code_exit ]         // Change state
 
 // Twin of colon, resposible for terminating a definition
-
 .head_semicol
 dw [ .head_colon 0x80 ";" ]
 .code_semicol
@@ -1046,7 +1064,6 @@ dw [ .code_interpret .code_exit ]         // Change state
 // It hijacks the caller word to stop execution and then
 // patches the newest word on the dictionary to become a
 // patch word with itscode as those after itself
-
 .head_patch
 dw [ .head_semicol 0x04 "patch" ]
 .code_patch

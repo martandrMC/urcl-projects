@@ -1,59 +1,107 @@
-: ' word find >cfa ;
+(
+	: def ( x y -- a b ) ... ;
+	( x y ) = arguments | ( a b ) = results
+	TOS is rightwards so use word as such: x y def
 
-: delist word find hide ;
+	d = dictionary entry
+	x = execution token
+	n = generic number
+	a = generic address
+	s = string; same as ( a n )
+	w = word:
+		as argument = taken from input
+		as result = new entry created
+)
 
-: char word drop @ ;
+: ' ( w -- x )
+	word find >cfa
+;
 
-: >name
+: delist ( w -- )
+	word find hide
+;
+
+: char ( w -- n )
+	word drop @
+;
+
+: >name ( d -- s )
 	1+ dup
 	1+ swap
-	@ 15 & 1+
+	@ mlength & 1+
 ;
 
-: if runimm
+: if ( -- a )
 	litn brz ,
 	here @ 0 ,
-;
+; runimm
 
-: unl runimm
+: unl ( -- a )
 	litn not ,
 	[ ' if , ]
-;
+; runimm
 
-: end runimm
+: end ( a -- )
 	here @ over - swap !
-;
+; runimm
 
-: else runimm
+: else ( a -- a )
 	litn jmp ,
 	here @ 0 ,
 	swap [ ' end , ]
-;
+; runimm
 
-: begin runimm here @ ;
+: begin ( -- a )
+	here @
+; runimm
 
-: loop runimm
+: loop ( a -- )
 	litn jmp ,
 	swap here @ - ,
 	[ ' end , ]
-;
+; runimm
 
-: self runimm
+: self ( -- )
 	last @ >cfa ,
+; runimm
+
+: mark ( w -- w )
+	last @ here @ word create 0 , 0 , , ,
+	patch dup @ here ! 1+ @ last !
 ;
 
-: words
+: " ( w* -- s )
+	state @ if
+		litn lits , here @ 0 ,
+		begin inp dup 34 =
+		unl , loop drop
+		dup [ ' end , ] -!
+	else
+		here @ begin inp dup 34 =
+		unl over ! 1+ loop drop
+		here @ swap over -
+	end
+; runimm
+
+: ." ( w* -- )
+	state @ if [ ' " , ] litn tell ,
+	else begin inp dup 34 =
+	unl out loop drop end
+; runimm
+
+: ?words ( -- )
 	last @ begin
 		dup >name tell
 		10 out @ dup 0 = 
 	unl loop drop
 ;
 
-: free
-	edr here @ -
+: ?stack ( -- )
+	dsp@ begin tds over >
+	if dup @ . 32 out 1+
+	loop drop
 ;
 
-: mark
-	last @ here @ word create 0 , 0 , , ,
-	patch dup @ here ! 1+ @ last !
+: ?free ( -- n )
+	edr here @ -
 ;
