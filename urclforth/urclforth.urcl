@@ -2,7 +2,7 @@ run rom
 bits 16
 
 // Total RAM = 2048 Cells (4 KiB)
-minheap 1517
+minheap 1495
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -454,9 +454,55 @@ nop
     inc dsp dsp
     jmp .next
 
+// Discard the top N values on the DS
+.head_ndrop
+dw [ .head_drop 0x04 "ndrop" ]
+.code_ndrop
+dw [ .exec_ndrop ]
+nop
+.exec_ndrop
+    pop tr1
+    add dsp dsp tr1
+    jmp .next
+
+// Duplicate the top value on the DS
+.head_dup
+dw [ .head_ndrop 0x02 "dup" ]
+.code_dup
+dw [ .exec_dup ]
+nop
+.exec_dup
+    lod tr1 dsp
+    psh tr1
+    jmp .next
+
+// Duplicate the top two values on the DS
+.head_twodup
+dw [ .head_dup 0x03 "2dup" ]
+.code_twodup
+dw [ .exec_twodup ]
+nop
+.exec_twodup
+    llod tr1 dsp 0
+    llod tr2 dsp 1
+    psh tr2
+    psh tr1
+    jmp .next
+
+// Duplicate the second-to-top value on the DS
+.head_over
+dw [ .head_twodup 0x03 "over" ]
+.code_over
+dw [ .exec_over ]
+nop
+.exec_over
+    llod tr1 dsp 1
+    psh tr1
+    jmp .next
+
 // Swap the top two values on the DS
 .head_swap
-dw [ .head_drop 0x03 "swap" ]
+dw [ .head_over 0x03 "swap" ]
 .code_swap
 dw [ .exec_swap ]
 nop
@@ -467,31 +513,9 @@ nop
     psh tr2
     jmp .next
 
-// Duplicate the top value on the DS
-.head_dup
-dw [ .head_swap 0x02 "dup" ]
-.code_dup
-dw [ .exec_dup ]
-nop
-.exec_dup
-    lod tr1 dsp
-    psh tr1
-    jmp .next
-
-// Duplicate the second-to-top value on the DS
-.head_over
-dw [ .head_dup 0x03 "over" ]
-.code_over
-dw [ .exec_over ]
-nop
-.exec_over
-    llod tr1 dsp 1
-    psh tr1
-    jmp .next
-
 // Move the third-to-top value to the top of the DS
 .head_rot
-dw [ .head_over 0x02 "rot" ]
+dw [ .head_swap 0x02 "rot" ]
 .code_rot
 dw [ .exec_rot ]
 nop
@@ -504,9 +528,25 @@ nop
     psh tr3
     jmp .next
 
+// Inverse operation to `rot` since rotating
+// a triplet three times leaves it the same
+.head_tworot
+dw [ .head_rot 0x03 "2rot" ]
+.code_tworot
+dw [ .exec_tworot ]
+nop
+.exec_tworot
+    pop tr1
+    pop tr2
+    pop tr3
+    psh tr1
+    psh tr3
+    psh tr2
+    jmp .next
+
 // Increment the top value on the DS
 .head_inc
-dw [ .head_rot 0x01 "1+" ]
+dw [ .head_tworot 0x01 "1+" ]
 .code_inc
 dw [ .exec_inc ]
 nop

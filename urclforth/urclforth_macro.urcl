@@ -2,7 +2,7 @@ run rom
 bits 16
 
 // Total RAM = 2048 Cells (4 KiB)
-minheap 1517
+minheap 1495
 minstack 32
 
 // Forth VM Register Set (8 total)
@@ -347,12 +347,10 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     inc dsp dsp
     jmp .next
 
-// Swap the top two values on the DS
-@defprim "swap" swap
+// Discard the top N values on the DS
+@defprim "ndrop" ndrop
     pop tr1
-    pop tr2
-    psh tr1
-    psh tr2
+    add dsp dsp tr1
     jmp .next
 
 // Duplicate the top value on the DS
@@ -361,10 +359,26 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr1
     jmp .next
 
+// Duplicate the top two values on the DS
+@defprim "2dup" twodup
+    llod tr1 dsp 0
+    llod tr2 dsp 1
+    psh tr2
+    psh tr1
+    jmp .next
+
 // Duplicate the second-to-top value on the DS
 @defprim "over" over
     llod tr1 dsp 1
     psh tr1
+    jmp .next
+
+// Swap the top two values on the DS
+@defprim "swap" swap
+    pop tr1
+    pop tr2
+    psh tr1
+    psh tr2
     jmp .next
 
 // Move the third-to-top value to the top of the DS
@@ -375,6 +389,17 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     psh tr2
     psh tr1
     psh tr3
+    jmp .next
+
+// Inverse operation to `rot` since rotating
+// a triplet three times leaves it the same
+@defprim "2rot" tworot
+    pop tr1
+    pop tr2
+    pop tr3
+    psh tr1
+    psh tr3
+    psh tr2
     jmp .next
 
 // Increment the top value on the DS

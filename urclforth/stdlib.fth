@@ -142,9 +142,8 @@ var msg3 ," Define words using `: name contents ;`"
 msg1 over ! 1+
 msg2 over ! 1+
 msg3 over ! 1+
-msg4 over ! 1+
-drop
+msg4 over ! drop
 
-." URCL Forth v3.6 (" . ."  free / " edr . ."  total)" 10 out
+." URCL Forth v3.7 (" . ."  free / " edr . ."  total)" 10 out
 msgs rng 4 % + @ >str tell 10 out
 done
