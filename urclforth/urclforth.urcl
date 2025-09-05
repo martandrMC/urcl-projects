@@ -454,20 +454,19 @@ nop
     inc dsp dsp
     jmp .next
 
-// Discard the top N values on the DS
-.head_ndrop
-dw [ .head_drop 0x04 "ndrop" ]
-.code_ndrop
-dw [ .exec_ndrop ]
+// Discard the top two values on the DS
+.head_twodrop
+dw [ .head_drop 0x04 "2drop" ]
+.code_twodrop
+dw [ .exec_twodrop ]
 nop
-.exec_ndrop
-    pop tr1
-    add dsp dsp tr1
+.exec_twodrop
+    add dsp dsp 2
     jmp .next
 
 // Duplicate the top value on the DS
 .head_dup
-dw [ .head_ndrop 0x02 "dup" ]
+dw [ .head_twodrop 0x02 "dup" ]
 .code_dup
 dw [ .exec_dup ]
 nop
