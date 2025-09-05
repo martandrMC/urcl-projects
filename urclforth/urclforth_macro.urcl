@@ -347,10 +347,9 @@ dw [ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]
     inc dsp dsp
     jmp .next
 
-// Discard the top N values on the DS
-@defprim "ndrop" ndrop
-    pop tr1
-    add dsp dsp tr1
+// Discard the top two values on the DS
+@defprim "2drop" twodrop
+    add dsp dsp 2
     jmp .next
 
 // Duplicate the top value on the DS
