@@ -2,8 +2,8 @@ run rom
 bits 16
 
 // Total RAM = 2048 Cells (4 KiB)
-minheap 1495
-minstack 32
+minheap 1479
+minstack 48
 
 // Forth VM Register Set (8 total)
 minreg 7
@@ -21,8 +21,8 @@ minreg 7
 @define FLAG_HIDDEN 0x40 // Ingored by dictionary lookups
 @define MASK_LENGTH 0x0f // Only up to 16 chars for the name
 
-@define RS_SIZE  8 // Size of the return stack
-@define DS_SIZE 24 // Size of the data stack
+@define RS_SIZE 16 // Size of the return stack
+@define DS_SIZE 32 // Size of the data stack
 
 ////////////////////////////////////////////////////////////
 //                    URCL ENTRYPOINT                     //

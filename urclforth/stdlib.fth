@@ -75,10 +75,29 @@
 	here @
 ; runimm
 
-: loop ( a -- )
+: loop ( a a -- )
 	litn jmp ,
 	swap here @ - ,
 	[ ' end , ]
+; runimm
+
+: for ( -- a a )
+	litn swap , [ ' begin , ]
+	litn 2dup , litn u> , litn 2rot ,
+	litn d>r , litn d>r , [ ' if , ]
+; runimm
+
+: idx ( -- )
+	litn rsp@ , litn 1+ , litn @ ,
+; runimm
+
+: done ( -- )
+	litn r>d , litn r>d , litn 2drop ,
+; runimm
+
+: repeat ( a a -- )
+	litn r>d , litn r>d , litn 1+ ,
+	[ ' loop , ' done , ]
 ; runimm
 
 : self ( -- )
@@ -118,7 +137,7 @@
 : ?words ( -- )
 	last @ begin
 		dup >name tell
-		10 out @ dup 0 = 
+		10 out @ dup 0 =
 	unl loop drop
 ;
 
@@ -144,6 +163,6 @@ msg2 over ! 1+
 msg3 over ! 1+
 msg4 over ! drop
 
-." URCL Forth v3.7 (" . ."  free / " edr . ."  total)" 10 out
+." URCL Forth v3.8 (" . ."  free / " edr . ."  total)" 10 out
 msgs rng 4 % + @ >str tell 10 out
 done
