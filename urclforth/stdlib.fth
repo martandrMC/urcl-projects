@@ -155,8 +155,8 @@
 ?free mark done
 var msg1 ," Type `?words` for a list of words you can call"
 var msg2 ," Type `?stack` to read the contents of the stack"
-var msg4 ," Postfix notation! Try this out: `1 2 + 3 * .`"
-var msg3 ," Define words using `: name contents ;`"
+var msg3 ," Postfix notation! Try this out: `1 2 + 3 * .`"
+var msg4 ," Define words using `: name contents ;`"
 4 array msgs msgs
 msg1 over ! 1+
 msg2 over ! 1+

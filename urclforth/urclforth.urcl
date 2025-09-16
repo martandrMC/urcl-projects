@@ -18,7 +18,7 @@ minreg 7
 
 // The length in the dictionary has a few flags on it too
 @define FLAG_RUNIMM 0x80 // Run immediately when encountered
-@define FLAG_HIDDEN 0x40 // Ingored by dictionary lookups
+@define FLAG_HIDDEN 0x40 // Ignored by dictionary lookups
 @define MASK_LENGTH 0x0f // Only up to 16 chars for the name
 
 @define RS_SIZE 16 // Size of the return stack
@@ -405,7 +405,7 @@ nop
     psh tr1
     jmp .next
 
-// Store a given value to a given addres
+// Store a given value to a given address
 // Address is ontop of the value
 .head_poke
 dw [ .head_peek 0x00 "!" ]
@@ -418,7 +418,7 @@ nop
     str tr1 tr2
     jmp .next
 
-// Increment the contents of a given addres
+// Increment the contents of a given address
 .head_incpoke
 dw [ .head_poke 0x01 "+!" ]
 .code_incpoke
@@ -431,7 +431,7 @@ nop
     str tr1 tr2
     jmp .next
 
-// Decrement the contents of a given addres
+// Decrement the contents of a given address
 .head_decpoke
 dw [ .head_incpoke 0x01 "-!" ]
 .code_decpoke
